@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseAlsProject } from './lib/alsReader'
 import { coincideBusqueda } from './lib/busqueda'
-import { elegirMejorClip } from './lib/clipPriority'
+import { elegirMejorClip, encontrarExportacionesSueltas, PISTA_EXPORTADO } from './lib/clipPriority'
 import { db, ROOT_ID, type ProjectRecord, type UserMetaRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
+import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './lib/repeticion'
 import { resolverClip } from './lib/resolvePath'
 import { debeReutilizarProyecto } from './lib/rescan'
 import { recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
 import { encontrarInicioSinSilencio } from './lib/silenceSkip'
 
 const DURACION_PREESCUCHA_SEGUNDOS = 15
+// A partir de cuántos proyectos distintos un archivo cuenta como "repetido".
+const UMBRAL_REPETICION = 3
 
 type ProjectEntry = ProjectRecord
 
@@ -55,6 +58,8 @@ function App() {
   const [fichaAbierta, setFichaAbierta] = useState<string | null>(null)
   const [fichaClips, setFichaClips] = useState<Record<string, Array<FileSystemFileHandle | null>>>({})
   const [metaPorPath, setMetaPorPath] = useState<Record<string, UserMetaRecord>>({})
+  const [repeticiones, setRepeticiones] = useState<Map<string, number>>(new Map())
+  const [ignorarRepetidos, setIgnorarRepetidos] = useState(false)
 
   const proyectosVisibles = useMemo(() => {
     return projects
@@ -85,7 +90,9 @@ function App() {
       if (!root || cancelado) return
 
       setRaizHandle(root.handle)
-      setProjects(await db.projects.toArray())
+      const proyectosGuardados = await db.projects.toArray()
+      setProjects(proyectosGuardados)
+      setRepeticiones(contarRepeticiones(proyectosGuardados))
 
       const metas = await db.userMeta.toArray()
       if (!cancelado) {
@@ -134,7 +141,16 @@ function App() {
             entry = existente as ProjectEntry
           } else {
             const bytes = new Uint8Array(await file.arrayBuffer())
-            const info = await parseAlsProject(bytes)
+            const infoLeida = await parseAlsProject(bytes)
+            const exportacionesSueltas = encontrarExportacionesSueltas(audioFiles, carpetaProyecto)
+            const info =
+              exportacionesSueltas.length === 0
+                ? infoLeida
+                : {
+                    ...infoLeida,
+                    tracks: [...infoLeida.tracks, PISTA_EXPORTADO],
+                    audioClips: [...infoLeida.audioClips, ...exportacionesSueltas],
+                  }
 
             let algunoEncontrado = false
             for (const clip of info.audioClips) {
@@ -164,6 +180,8 @@ function App() {
         }
         setProgreso((prev) => (prev ? { ...prev, leidos: prev.leidos + 1 } : prev))
       }
+
+      setRepeticiones(contarRepeticiones(entries))
 
       await db.roots.put({ id: ROOT_ID, nombre: raiz.name, handle: raiz, ultimoEscaneo: new Date() })
       await db.projects.clear()
@@ -239,7 +257,13 @@ function App() {
   async function onPlayClick(project: ProjectEntry) {
     if (!project.info || !raizHandle || !(await asegurarPermiso())) return
 
-    const mejorClip = elegirMejorClip(project.info.audioClips)
+    const candidatos = filtrarRepetidosSiProcede(
+      project.info.audioClips,
+      repeticiones,
+      UMBRAL_REPETICION,
+      ignorarRepetidos,
+    )
+    const mejorClip = elegirMejorClip(candidatos)
     if (!mejorClip) return
 
     const carpetaProyecto = project.path.split('/').slice(0, -1)
@@ -330,13 +354,23 @@ function App() {
       )}
 
       {projects.length > 0 && (
-        <input
-          type="search"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por nombre de proyecto o de pista…"
-          className="mt-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
+        <>
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre de proyecto o de pista…"
+            className="mt-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+          <label className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={ignorarRepetidos}
+              onChange={(e) => setIgnorarRepetidos(e.target.checked)}
+            />
+            Al reproducir, ignorar grabaciones que se repiten en {UMBRAL_REPETICION}+ proyectos
+          </label>
+        </>
       )}
 
       <ul className="mt-6 divide-y divide-gray-200">
@@ -450,11 +484,15 @@ function App() {
                             {clipsDeLaPista.map(({ clip, idx }) => {
                               const resueltos = fichaClips[project.path]
                               const handle = resueltos?.[idx]
+                              const veces = vecesRepetido(clip, repeticiones)
                               return (
                                 <li key={idx} className="flex items-center gap-2">
                                   <span>
                                     {clip.relativePath ?? '(ruta desconocida)'} —{' '}
                                     {!resueltos ? 'comprobando…' : handle ? 'encontrado' : 'no encontrado'}
+                                    {veces >= 2 && (
+                                      <span className="text-gray-400"> · en {veces} proyectos</span>
+                                    )}
                                   </span>
                                   {handle && (
                                     <button

@@ -22,8 +22,8 @@
 
 1. [x] Botón de play por cada clip en la ficha (antes solo se podía oír el clip priorizado)
 2. [x] Arreglado falso positivo "Con audio": la búsqueda de respaldo por nombre (cuando falta la ruta exacta) ahora solo mira dentro de la propia carpeta del proyecto, no toda la carpeta raíz — evitaba que un nombre de archivo genérico (ej. "1-Audio.wav") encontrara por error el de otro proyecto
-3. [ ] Detectar master/bounce: esperando que el usuario confirme cómo deja sus mezclas finales (¿pista dentro de la sesión con qué nombre? ¿archivo exportado aparte?)
-4. [ ] Identificar/filtrar samples repetidos entre proyectos: esperando que el usuario elija entre solo informar o filtrar activamente, y qué umbral de repetición usar
+3. [~] Detectar master/bounce (código y tests listos; falta probar en Chrome real): el usuario exporta fuera de Ableton y no lo vuelve a importar, así que ahora buscamos directamente en la carpeta del proyecto archivos con nombre de master/mezcla/bounce/export (ampliadas las palabras clave) aunque no estén en el `.als`
+4. [~] Samples repetidos entre proyectos (código y tests listos; falta probar en Chrome real): se cuenta en cuántos proyectos distintos aparece cada archivo (por nombre+tamaño) y hay un interruptor "ignorar grabaciones que se repiten en 3+ proyectos" al elegir qué suena. En la ficha se ve cuántos proyectos comparten cada clip. El umbral (3) es un valor por defecto, se puede ajustar si hace falta
 
 ## Notas de la sesión de hoy
 

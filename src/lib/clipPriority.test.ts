@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AudioClipInfo } from './alsReader'
-import { categorizarClip, elegirMejorClip } from './clipPriority'
+import type { AudioFileEntry } from './scanFolder'
+import { categorizarClip, elegirMejorClip, encontrarExportacionesSueltas } from './clipPriority'
 
 function clip(parcial: Partial<AudioClipInfo>): AudioClipInfo {
   return {
@@ -29,6 +30,45 @@ describe('categorizarClip', () => {
 
   it('el resto cuenta como librería', () => {
     expect(categorizarClip(clip({ relativePath: 'Samples/Imported/kick.wav' }))).toBe('libreria')
+  })
+
+  it('reconoce un master también por el nombre del archivo, aunque la pista no diga nada', () => {
+    expect(
+      categorizarClip(clip({ track: '1-Audio', relativePath: 'Mezcla Final.wav' })),
+    ).toBe('master')
+    expect(
+      categorizarClip(clip({ track: 'Audio 3', relativePath: 'Exports/Bounce 2024.wav' })),
+    ).toBe('master')
+  })
+})
+
+describe('encontrarExportacionesSueltas', () => {
+  function archivo(parcial: Partial<AudioFileEntry>): AudioFileEntry {
+    return { handle: {} as FileSystemFileHandle, path: 'proyecto/x.wav', name: 'x.wav', size: 0, ...parcial }
+  }
+
+  it('encuentra un archivo de master/bounce en la carpeta del proyecto, aunque no esté en el .als', () => {
+    const indice = [archivo({ path: 'proyecto/Mezcla Final.wav', name: 'Mezcla Final.wav', size: 123 })]
+    const resultado = encontrarExportacionesSueltas(indice, ['proyecto'])
+
+    expect(resultado).toEqual([
+      {
+        track: '(archivo exportado, no está en la sesión)',
+        relativePath: 'Mezcla Final.wav',
+        originalFileSize: 123,
+        durationBeats: null,
+      },
+    ])
+  })
+
+  it('ignora archivos de otros proyectos', () => {
+    const indice = [archivo({ path: 'otro proyecto/Bounce.wav', name: 'Bounce.wav' })]
+    expect(encontrarExportacionesSueltas(indice, ['proyecto'])).toEqual([])
+  })
+
+  it('ignora archivos que no parecen un master/bounce', () => {
+    const indice = [archivo({ path: 'proyecto/Samples/Recorded/idea.wav', name: 'idea.wav' })]
+    expect(encontrarExportacionesSueltas(indice, ['proyecto'])).toEqual([])
   })
 })
 
