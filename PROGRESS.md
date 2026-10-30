@@ -18,6 +18,13 @@
 - [x] **T14.** Reconectar carpeta y reescaneo de proyectos nuevos o modificados (probado por el usuario: funciona)
 - [x] **T15.** Prueba con tu biblioteca completa; lista de fallos y arreglos. Congelación (probado con la biblioteca completa: sin fallos. Pendiente investigar "Congelación"/Freeze — el usuario no tenía a mano un proyecto con pistas congeladas, queda anotado en IDEAS.md para cuando aparezca uno)
 
+## Pulido antes de publicar (ronda de feedback del usuario)
+
+1. [x] Botón de play por cada clip en la ficha (antes solo se podía oír el clip priorizado)
+2. [x] Arreglado falso positivo "Con audio": la búsqueda de respaldo por nombre (cuando falta la ruta exacta) ahora solo mira dentro de la propia carpeta del proyecto, no toda la carpeta raíz — evitaba que un nombre de archivo genérico (ej. "1-Audio.wav") encontrara por error el de otro proyecto
+3. [ ] Detectar master/bounce: esperando que el usuario confirme cómo deja sus mezclas finales (¿pista dentro de la sesión con qué nombre? ¿archivo exportado aparte?)
+4. [ ] Identificar/filtrar samples repetidos entre proyectos: esperando que el usuario elija entre solo informar o filtrar activamente, y qué umbral de repetición usar
+
 ## Notas de la sesión de hoy
 
 - Repositorio de GitHub: **privado**.
