@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatoDuracion, formatoFecha, formatoTamano } from './formato'
+import { formatoDuracion, formatoFecha, formatoSegundos, formatoTamano } from './formato'
 
 describe('formatoTamano', () => {
   it('muestra megabytes por debajo de 1 GB', () => {
@@ -26,6 +26,18 @@ describe('formatoDuracion', () => {
     expect(formatoDuracion(null, 120)).toBe('—')
     expect(formatoDuracion(64, null)).toBe('—')
     expect(formatoDuracion(64, 0)).toBe('—')
+  })
+})
+
+describe('formatoSegundos', () => {
+  it('convierte segundos reales a minutos:segundos', () => {
+    expect(formatoSegundos(32)).toBe('0:32')
+    expect(formatoSegundos(93)).toBe('1:33')
+  })
+
+  it('sin segundos válidos, devuelve un guion', () => {
+    expect(formatoSegundos(null)).toBe('—')
+    expect(formatoSegundos(Number.POSITIVE_INFINITY)).toBe('—')
   })
 })
 

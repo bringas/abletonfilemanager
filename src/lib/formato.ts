@@ -12,10 +12,16 @@ export function formatoTamano(bytes: number | null | undefined): string {
  */
 export function formatoDuracion(durationBeats: number | null, bpm: number | null): string {
   if (durationBeats == null || !bpm) return '—'
-  const segundosTotales = Math.round((durationBeats / bpm) * 60)
+  return formatoSegundos((durationBeats / bpm) * 60)
+}
+
+/** Una cantidad de segundos (ya reales, no en beats) a minutos:segundos. */
+export function formatoSegundos(segundos: number | null): string {
+  if (segundos == null || !Number.isFinite(segundos)) return '—'
+  const segundosTotales = Math.round(segundos)
   const minutos = Math.floor(segundosTotales / 60)
-  const segundos = segundosTotales % 60
-  return `${minutos}:${segundos.toString().padStart(2, '0')}`
+  const resto = segundosTotales % 60
+  return `${minutos}:${resto.toString().padStart(2, '0')}`
 }
 
 /** Fecha corta en español, p.ej. "12 mar 2024". */

@@ -30,7 +30,9 @@
 
 ## Avanzar y retroceder la reproducción (31 oct 2026)
 
-La barra de progreso del reproductor individual (no la mezcla completa) ahora es clicable para saltar a cualquier punto, y hay botones ⏪/⏩ para avanzar o retroceder 5 segundos. Nunca se sale del tramo real del clip (ni antes de su inicio ni después de su fin).
+La barra de progreso del reproductor individual ahora es clicable para saltar a cualquier punto, y hay botones ⏪/⏩ para avanzar o retroceder 5 segundos. Nunca se sale del tramo real del clip (ni antes de su inicio ni después de su fin).
+
+La mezcla completa también lo tiene ahora: como las fuentes de Web Audio no se pueden "mover" una vez arrancadas, saltar para la mezcla reprograma todas las pistas desde el nuevo punto (sin volver a leer ni decodificar los archivos: se quedan ya decodificados en memoria mientras suena la mezcla, ver `reprogramarMezclaDesde` en App.tsx).
 
 ## Nueva función: mezcla completa del proyecto (31 oct 2026)
 

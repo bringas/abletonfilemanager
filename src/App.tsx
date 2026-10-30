@@ -11,7 +11,7 @@ import {
 import { db, ROOT_ID, type ProjectRecord, type UserMetaRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
 import { claveDeCarpeta, construirArbolDeCarpetas, proyectosEnCarpeta, type FolderNode } from './lib/folderTree'
-import { formatoDuracion, formatoFecha, formatoTamano } from './lib/formato'
+import { formatoDuracion, formatoFecha, formatoSegundos, formatoTamano } from './lib/formato'
 import { reducirClipsPorPista } from './lib/reducirRuido'
 import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './lib/repeticion'
 import { resolverClip } from './lib/resolvePath'
@@ -29,6 +29,16 @@ type TipoDePista = 'midi' | 'grabado' | 'audio'
 interface Progreso {
   leidos: number
   total: number
+}
+
+/** Un clip de la mezcla completa, ya decodificado y listo para programarse. */
+interface ClipMezclaPreparado {
+  buffer: AudioBuffer
+  /** Dónde empieza, en segundos desde el principio de la "canción" (mezcla). */
+  posicion: number
+  /** Dónde empieza, en segundos dentro del propio archivo (el tramo real del clip). */
+  offset: number
+  duracion: number
 }
 
 const ETIQUETA_ESTADO: Record<EstadoPreescucha, string> = {
@@ -199,8 +209,18 @@ function App() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const fuentesActivasRef = useRef<AudioBufferSourceNode[]>([])
   const mezclaTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mezclaIntervaloRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const mezclaGainRef = useRef<GainNode | null>(null)
+  // Los clips ya decodificados (para poder saltar sin tener que releerlos y
+  // decodificarlos otra vez) y desde qué segundo de la "canción" suena el
+  // tramo programado ahora mismo.
+  const mezclaPreparadaRef = useRef<{ clips: ClipMezclaPreparado[]; duracionTotal: number } | null>(null)
+  const mezclaInicioContextoRef = useRef(0)
+  const mezclaPosicionBaseRef = useRef(0)
   const [mezclaReproduciendo, setMezclaReproduciendo] = useState<string | null>(null)
   const [mezclaCargando, setMezclaCargando] = useState<string | null>(null)
+  const [progresoMezcla, setProgresoMezcla] = useState(0)
+  const [duracionMezcla, setDuracionMezcla] = useState(0)
 
   const [busqueda, setBusqueda] = useState('')
   const [carpetaSeleccionada, setCarpetaSeleccionada] = useState<string[]>([])
@@ -267,7 +287,8 @@ function App() {
     setTramoActivo(null)
   }
 
-  function pararMezcla() {
+  /** Para las fuentes que suenan ahora, pero mantiene los clips ya decodificados (para poder saltar sin releerlos). */
+  function detenerFuentesMezcla() {
     for (const fuente of fuentesActivasRef.current) {
       try {
         fuente.stop()
@@ -280,7 +301,79 @@ function App() {
       clearTimeout(mezclaTimeoutRef.current)
       mezclaTimeoutRef.current = null
     }
+  }
+
+  function pararMezcla() {
+    detenerFuentesMezcla()
+    if (mezclaIntervaloRef.current) {
+      clearInterval(mezclaIntervaloRef.current)
+      mezclaIntervaloRef.current = null
+    }
+    mezclaPreparadaRef.current = null
+    mezclaGainRef.current = null
     setMezclaReproduciendo(null)
+    setProgresoMezcla(0)
+    setDuracionMezcla(0)
+  }
+
+  /**
+   * (Re)programa la reproducción de la mezcla a partir del segundo `desde`
+   * de la "canción": para lo que sonara y vuelve a arrancar cada pista en su
+   * sitio, con el trozo que le quede por sonar desde ese punto. Las fuentes
+   * de Web Audio no se pueden "mover": hay que pararlas y crear otras.
+   */
+  function reprogramarMezclaDesde(desde: number) {
+    const ctx = audioContextRef.current
+    const master = mezclaGainRef.current
+    const preparada = mezclaPreparadaRef.current
+    if (!ctx || !master || !preparada) return
+
+    detenerFuentesMezcla()
+
+    const margen = 0.15
+    const inicioContexto = ctx.currentTime + margen
+    const fuentes: AudioBufferSourceNode[] = []
+
+    for (const clip of preparada.clips) {
+      const finClip = clip.posicion + clip.duracion
+      if (finClip <= desde) continue // ya habría terminado antes de este punto
+
+      const yaEmpezado = clip.posicion < desde
+      const offset = yaEmpezado ? clip.offset + (desde - clip.posicion) : clip.offset
+      const duracion = yaEmpezado ? finClip - desde : clip.duracion
+      const cuando = yaEmpezado ? inicioContexto : inicioContexto + (clip.posicion - desde)
+
+      const source = ctx.createBufferSource()
+      source.buffer = clip.buffer
+      source.connect(master)
+      source.start(cuando, offset, duracion)
+      fuentes.push(source)
+    }
+
+    fuentesActivasRef.current = fuentes
+    mezclaInicioContextoRef.current = inicioContexto
+    mezclaPosicionBaseRef.current = desde
+    setProgresoMezcla(preparada.duracionTotal > 0 ? Math.min(1, Math.max(0, desde / preparada.duracionTotal)) : 0)
+
+    const restante = Math.max(0, preparada.duracionTotal - desde)
+    mezclaTimeoutRef.current = setTimeout(() => pararMezcla(), restante * 1000 + margen * 1000 + 300)
+  }
+
+  /** Salta la mezcla a la fracción (0 a 1) de la barra de progreso. */
+  function buscarEnProgresoMezcla(fraccion: number) {
+    const preparada = mezclaPreparadaRef.current
+    if (!preparada) return
+    const destino = Math.min(preparada.duracionTotal, Math.max(0, fraccion * preparada.duracionTotal))
+    reprogramarMezclaDesde(destino)
+  }
+
+  /** Avanza o retrocede la mezcla `segundos` (negativo para retroceder). */
+  function saltarMezcla(segundos: number) {
+    const preparada = mezclaPreparadaRef.current
+    const ctx = audioContextRef.current
+    if (!preparada || !ctx) return
+    const actual = mezclaPosicionBaseRef.current + (ctx.currentTime - mezclaInicioContextoRef.current)
+    reprogramarMezclaDesde(Math.min(preparada.duracionTotal, Math.max(0, actual + segundos)))
   }
 
   async function copiarRuta(project: ProjectEntry) {
@@ -575,11 +668,9 @@ function App() {
       // el volumen de cada una.
       master.gain.value = 1 / Math.sqrt(Math.max(1, clips.length))
       master.connect(ctx.destination)
+      mezclaGainRef.current = master
 
-      const margen = 0.3
-      const inicioContexto = ctx.currentTime + margen
-      const fuentes: AudioBufferSourceNode[] = []
-      let finMasTardio = 0
+      const preparados: ClipMezclaPreparado[] = []
 
       for (const clip of clips) {
         const handle = await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex)
@@ -594,25 +685,32 @@ function App() {
         }
 
         const tramo = calcularTramo(clip)
-        const offsetEnArchivo = tramo?.inicio ?? 0
-        const duracionEnArchivo = Math.max(0, (tramo ? tramo.fin - offsetEnArchivo : buffer.duration - offsetEnArchivo))
-        if (duracionEnArchivo <= 0) continue
+        const offset = tramo?.inicio ?? 0
+        const duracion = Math.max(0, tramo ? tramo.fin - offset : buffer.duration - offset)
+        if (duracion <= 0) continue
 
-        const posicionEnLaCancion = clip.startBeats != null ? (clip.startBeats * 60) / bpm : 0
-
-        const source = ctx.createBufferSource()
-        source.buffer = buffer
-        source.connect(master)
-        source.start(inicioContexto + posicionEnLaCancion, offsetEnArchivo, duracionEnArchivo)
-        fuentes.push(source)
-        finMasTardio = Math.max(finMasTardio, posicionEnLaCancion + duracionEnArchivo)
+        const posicion = clip.startBeats != null ? (clip.startBeats * 60) / bpm : 0
+        preparados.push({ buffer, posicion, offset, duracion })
       }
 
-      if (fuentes.length === 0) return
+      if (preparados.length === 0) return
 
-      fuentesActivasRef.current = fuentes
+      const duracionTotal = preparados.reduce((max, c) => Math.max(max, c.posicion + c.duracion), 0)
+      mezclaPreparadaRef.current = { clips: preparados, duracionTotal }
+      setDuracionMezcla(duracionTotal)
       setMezclaReproduciendo(project.path)
-      mezclaTimeoutRef.current = setTimeout(() => pararMezcla(), (margen + finMasTardio) * 1000 + 300)
+
+      reprogramarMezclaDesde(0)
+
+      mezclaIntervaloRef.current = setInterval(() => {
+        const ctxActual = audioContextRef.current
+        const preparada = mezclaPreparadaRef.current
+        if (!ctxActual || !preparada) return
+        const transcurrido = mezclaPosicionBaseRef.current + (ctxActual.currentTime - mezclaInicioContextoRef.current)
+        setProgresoMezcla(
+          preparada.duracionTotal > 0 ? Math.min(1, Math.max(0, transcurrido / preparada.duracionTotal)) : 0,
+        )
+      }, 200)
     } finally {
       setMezclaCargando(null)
     }
@@ -949,6 +1047,41 @@ function App() {
                     Sumando todas las pistas en bruto: sin plugins, volúmenes ni paneo del proyecto, y sin las pistas
                     MIDI.
                   </p>
+                )}
+
+                {mezclaReproduciendo === proyectoActivo.path && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => saltarMezcla(-5)}
+                      aria-label="Retroceder 5 segundos"
+                      className="shrink-0 text-[14px] text-[#58544b] hover:text-[#15130f]"
+                    >
+                      ⏪
+                    </button>
+                    <div
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        buscarEnProgresoMezcla((e.clientX - rect.left) / rect.width)
+                      }}
+                      className="w-full max-w-xs cursor-pointer py-2"
+                    >
+                      <div className="h-1 w-full overflow-hidden bg-[#ddd9cf]">
+                        <div className="h-full bg-[#15130f]" style={{ width: `${progresoMezcla * 100}%` }} />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => saltarMezcla(5)}
+                      aria-label="Avanzar 5 segundos"
+                      className="shrink-0 text-[14px] text-[#58544b] hover:text-[#15130f]"
+                    >
+                      ⏩
+                    </button>
+                    <span className="shrink-0 text-[11px] text-[#9c988d]">
+                      {formatoSegundos(progresoMezcla * duracionMezcla)} / {formatoSegundos(duracionMezcla)}
+                    </span>
+                  </div>
                 )}
 
                 {reproduciendoPath === proyectoActivo.path && (
