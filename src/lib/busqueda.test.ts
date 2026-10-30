@@ -31,4 +31,17 @@ describe('coincideBusqueda', () => {
     })
     expect(coincideBusqueda(project, 'batería')).toBe(false)
   })
+
+  it('coincide por alias', () => {
+    const project = proyecto({ path: 'Untitled 47.als' })
+    expect(coincideBusqueda(project, 'post-punk', { projectId: project.path, alias: 'Post-punk riff' })).toBe(
+      true,
+    )
+  })
+
+  it('coincide por etiqueta', () => {
+    const project = proyecto({ path: 'Untitled 47.als' })
+    const meta = { projectId: project.path, etiquetas: ['reggaeton', 'demo'] }
+    expect(coincideBusqueda(project, 'reggaeton', meta)).toBe(true)
+  })
 })

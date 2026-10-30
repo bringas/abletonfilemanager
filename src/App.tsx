@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseAlsProject } from './lib/alsReader'
 import { coincideBusqueda } from './lib/busqueda'
 import { elegirMejorClip } from './lib/clipPriority'
-import { db, ROOT_ID, type ProjectRecord } from './lib/db'
+import { db, ROOT_ID, type ProjectRecord, type UserMetaRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
 import { resolverClip } from './lib/resolvePath'
 import { recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
@@ -53,12 +53,19 @@ function App() {
   const [busqueda, setBusqueda] = useState('')
   const [fichaAbierta, setFichaAbierta] = useState<string | null>(null)
   const [fichaClips, setFichaClips] = useState<Record<string, boolean[]>>({})
+  const [metaPorPath, setMetaPorPath] = useState<Record<string, UserMetaRecord>>({})
 
   const proyectosVisibles = useMemo(() => {
     return projects
-      .filter((p) => coincideBusqueda(p, busqueda))
+      .filter((p) => coincideBusqueda(p, busqueda, metaPorPath[p.path]))
       .sort((a, b) => (b.lastModified ?? 0) - (a.lastModified ?? 0))
-  }, [projects, busqueda])
+  }, [projects, busqueda, metaPorPath])
+
+  async function guardarMeta(path: string, cambios: Partial<UserMetaRecord>) {
+    const nuevo: UserMetaRecord = { ...metaPorPath[path], ...cambios, projectId: path }
+    await db.userMeta.put(nuevo)
+    setMetaPorPath((prev) => ({ ...prev, [path]: nuevo }))
+  }
 
   function pararReproduccion() {
     audioElRef.current?.pause()
@@ -78,6 +85,11 @@ function App() {
 
       setRaizHandle(root.handle)
       setProjects(await db.projects.toArray())
+
+      const metas = await db.userMeta.toArray()
+      if (!cancelado) {
+        setMetaPorPath(Object.fromEntries(metas.map((meta) => [meta.projectId, meta])))
+      }
 
       const permiso = await root.handle.queryPermission({ mode: 'read' })
       if (!cancelado) setNecesitaPermiso(permiso !== 'granted')
@@ -285,7 +297,20 @@ function App() {
           <li key={project.path} className="py-3">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="font-medium">{project.path}</p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => guardarMeta(project.path, { favorito: !metaPorPath[project.path]?.favorito })}
+                  aria-label="Marcar como favorito"
+                  className="text-amber-500"
+                >
+                  {metaPorPath[project.path]?.favorito ? '★' : '☆'}
+                </button>
+                <p className="font-medium">{metaPorPath[project.path]?.alias || project.path}</p>
+              </div>
+              {metaPorPath[project.path]?.alias && (
+                <p className="text-xs text-gray-400">{project.path}</p>
+              )}
               {project.error && <p className="text-sm text-red-600">{project.error}</p>}
               {project.info && (
                 <p className="text-sm text-gray-500">
@@ -300,6 +325,29 @@ function App() {
                   {ETIQUETA_ESTADO[project.estado]}
                 </span>
               )}
+              <div className="mt-1 flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  defaultValue={metaPorPath[project.path]?.alias ?? ''}
+                  onBlur={(e) => guardarMeta(project.path, { alias: e.target.value })}
+                  placeholder="Ponle un alias…"
+                  className="w-40 rounded border border-gray-200 px-1.5 py-0.5 text-xs"
+                />
+                <input
+                  type="text"
+                  defaultValue={(metaPorPath[project.path]?.etiquetas ?? []).join(', ')}
+                  onBlur={(e) =>
+                    guardarMeta(project.path, {
+                      etiquetas: e.target.value
+                        .split(',')
+                        .map((etiqueta) => etiqueta.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder="Etiquetas separadas por comas…"
+                  className="w-48 rounded border border-gray-200 px-1.5 py-0.5 text-xs"
+                />
+              </div>
               {reproduciendoPath === project.path && (
                 <div className="mt-1 h-1 w-40 overflow-hidden rounded-full bg-gray-200">
                   <div
