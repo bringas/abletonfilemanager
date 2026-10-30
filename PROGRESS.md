@@ -28,6 +28,10 @@
 6. [~] Ocultar por defecto en la ficha los audios "no encontrados" (con una casilla para mostrarlos si hace falta) — falta probar en Chrome real
 7. [~] Se descubrió la causa real de los proyectos con "cientos de clips por pista": Ableton guarda las tomas repetidas en "take lanes" (carriles de tomas), que **no suenan por defecto**, solo el carril principal de la pista. Ahora el lector de `.als` detecta esto (campo `principal` en cada clip) y, por pista, solo se muestra y se puede reproducir por defecto lo que está en el carril principal. Si una pista no tiene nada ahí (todo quedó en tomas archivadas), esa pista no tiene preview por defecto — no se adivina una "mejor estimación". El resto queda disponible solo tras marcar "Mostrar también las tomas archivadas". Esto sustituye y mejora el punto 7 anterior (que solo miraba los export sueltos) — falta probar en Chrome real con un proyecto de los pesados (700+ clips)
 
+## Cambio de criterio: reproducir el archivo entero (30 oct 2026)
+
+El usuario cambió de idea sobre T11: ya no quiere saltar el silencio inicial ni cortar a los 15 segundos, sino reproducir la grabación encontrada entera, desde el principio. Quitado `src/lib/silenceSkip.ts` (ya no se usa) y la barra de progreso ahora se calcula contra la duración real del archivo (`audioEl.duration`), no contra 15s fijos. Actualizado también docs/SPEC.md.
+
 ## Arreglo importante: audio equivocado al reproducir (30 oct 2026)
 
 El usuario reportó que en algunos clips sonaba un instrumento distinto al que se ve en Ableton (ej. sonaba un bajo en una pista de guitarra). Causa encontrada:

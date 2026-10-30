@@ -125,7 +125,7 @@ El objetivo es reconocer la idea en pocos segundos:
 3. Audio consolidado o procesado, en `Samples/Processed`. Las pistas congeladas (`Freeze`) podrían dejar oír partes MIDI; se investiga el martes.
 4. Samples importados de librerías, como último recurso: suenan igual en muchos proyectos.
 
-Dentro de cada grupo gana el clip más largo del arreglo. Suenan unos 15 segundos, saltando el silencio inicial cuando lo hay; si no se puede calcular, desde el principio del archivo.
+Dentro de cada grupo gana el clip más largo del arreglo. Suena el archivo entero, desde el principio (sin saltar silencios ni cortar a los 15 segundos).
 
 **Cómo se reproduce**
 

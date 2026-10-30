@@ -17,10 +17,8 @@ import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './
 import { resolverClip } from './lib/resolvePath'
 import { debeReutilizarProyecto } from './lib/rescan'
 import { recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
-import { encontrarInicioSinSilencio } from './lib/silenceSkip'
 import { generarBarras } from './lib/waveformVisual'
 
-const DURACION_PREESCUCHA_SEGUNDOS = 15
 // A partir de cuántos proyectos distintos un archivo cuenta como "repetido".
 const UMBRAL_REPETICION = 3
 
@@ -434,15 +432,13 @@ function App() {
     if (urlActual) URL.revokeObjectURL(urlActual)
 
     const file = await handle.getFile()
-    const inicio = await encontrarInicioSinSilencio(file)
     const url = URL.createObjectURL(file)
 
     audioEl.src = url
-    audioEl.currentTime = inicio
+    audioEl.currentTime = 0
     audioEl.ontimeupdate = () => {
-      const transcurrido = audioEl.currentTime - inicio
-      setProgresoReproduccion(Math.min(1, transcurrido / DURACION_PREESCUCHA_SEGUNDOS))
-      if (transcurrido >= DURACION_PREESCUCHA_SEGUNDOS) pararReproduccion()
+      const duracion = audioEl.duration
+      setProgresoReproduccion(duracion ? Math.min(1, audioEl.currentTime / duracion) : 0)
     }
     audioEl.onended = () => pararReproduccion()
 
