@@ -161,8 +161,11 @@ function App() {
               audioClips: reducirClipsPorPista(infoConExportaciones.audioClips, audioFiles, carpetaProyecto),
             }
 
+            // Solo cuentan los clips que se muestran por defecto: si todo lo
+            // que hay son tomas archivadas, no hay preview que ofrecer.
             let algunoEncontrado = false
             for (const clip of info.audioClips) {
+              if (clip.mostrarPorDefecto === false) continue
               const encontrado = await resolverClip(raiz, carpetaProyecto, clip, audioFiles)
               if (encontrado) {
                 algunoEncontrado = true
@@ -523,7 +526,9 @@ function App() {
                           <p className="text-gray-400">
                             {noEncontrados > 0
                               ? `Ninguna grabación encontrada (${noEncontrados} oculta${noEncontrados === 1 ? '' : 's'})`
-                              : 'comprobando…'}
+                              : archivadasOcultas > 0
+                                ? `Sin toma principal (${archivadasOcultas} archivada${archivadasOcultas === 1 ? '' : 's'}, oculta${archivadasOcultas === 1 ? '' : 's'})`
+                                : 'comprobando…'}
                           </p>
                         ) : (
                           <ul className="ml-3 list-disc text-gray-600">
@@ -558,7 +563,7 @@ function App() {
                             + {noEncontrados} no encontrada{noEncontrados === 1 ? '' : 's'} (ocultas)
                           </p>
                         )}
-                        {!mostrarOtrosArchivos && archivadasOcultas > 0 && (
+                        {!mostrarOtrosArchivos && archivadasOcultas > 0 && clipsDeLaPista && clipsDeLaPista.length > 0 && (
                           <p className="text-xs text-gray-400">
                             + {archivadasOcultas} toma{archivadasOcultas === 1 ? '' : 's'} archivada
                             {archivadasOcultas === 1 ? '' : 's'} (oculta{archivadasOcultas === 1 ? '' : 's'})

@@ -10,11 +10,11 @@ const UMBRAL_RUIDO = 5
  * "mostrar otros archivos". No borra nada: todo sigue en el resultado, solo
  * marcado con `mostrarPorDefecto`.
  *
- * Primero mira si la pista tiene clips en su carril principal (lo que
- * Ableton reproduce de verdad al abrir el proyecto). Si los tiene, esos son
- * los que se muestran, y toda toma archivada en un "take lane" queda oculta.
- * Si no tiene ninguno (todo quedó en tomas archivadas, sin "comp" elegido),
- * usamos esas tomas como mejor estimación.
+ * Solo se muestran por defecto los clips del carril principal de la pista
+ * (lo que Ableton reproduce de verdad al abrir el proyecto). Si una pista no
+ * tiene ninguno —toda quedó en "take lanes", tomas archivadas que Ableton no
+ * reproduce— no hay nada que mostrar ni reproducir por defecto para esa
+ * pista; esas tomas quedan disponibles, pero solo detrás del interruptor.
  *
  * Dentro del grupo que se muestra, y también dentro del que queda oculto, si
  * hay más de `UMBRAL_RUIDO` clips nos quedamos solo con el más reciente (por
@@ -40,11 +40,8 @@ export function reducirClipsPorPista(
     const principales = clipsDePista.filter((clip) => clip.principal !== false)
     const secundarios = clipsDePista.filter((clip) => clip.principal === false)
 
-    const grupoMostrado = principales.length > 0 ? principales : secundarios
-    const grupoOculto = principales.length > 0 ? secundarios : []
-
-    resultado.push(...reducirGrupo(grupoMostrado, indiceDelProyecto, true))
-    resultado.push(...reducirGrupo(grupoOculto, indiceDelProyecto, false))
+    resultado.push(...reducirGrupo(principales, indiceDelProyecto, true))
+    resultado.push(...reducirGrupo(secundarios, indiceDelProyecto, false))
   }
 
   return resultado

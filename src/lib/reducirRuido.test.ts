@@ -76,12 +76,12 @@ describe('reducirClipsPorPista', () => {
     expect(resultado.filter((c) => c.track === 'Voz').length).toBeLessThanOrEqual(2)
   })
 
-  it('si una pista solo tiene tomas archivadas (sin carril principal), se usan como mejor estimación', () => {
+  it('si una pista solo tiene tomas archivadas (sin carril principal), no se muestra nada por defecto', () => {
     const clips = [clip('toma1.wav', 4, false), clip('toma2.wav', 8, false)]
     const resultado = reducirClipsPorPista(clips, [], ['proyecto'])
 
     expect(resultado).toHaveLength(2)
-    expect(resultado.every((c) => c.mostrarPorDefecto === true)).toBe(true)
+    expect(resultado.every((c) => c.mostrarPorDefecto === false)).toBe(true)
   })
 
   it('si hay clips en el carril principal, las tomas archivadas quedan ocultas por defecto', () => {
