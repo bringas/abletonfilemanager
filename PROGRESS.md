@@ -11,9 +11,9 @@
 - [x] **T7.** Escaneo de la carpeta completa con barra de progreso, ignorando `Backup` y archivos `._` (probado por el usuario en su Chrome real: funciona)
 - [x] **T8.** Guardar el catálogo en IndexedDB con Dexie: al recargar la página, sigue ahí (probado por el usuario, incluido cerrar/reabrir y "Reconectar carpeta": funciona)
 - [x] **T9.** Índice de audios, búsqueda por nombre y tamaño, y estados de preescucha (probado por el usuario en su Chrome real: funciona)
-- [ ] **T10.** Biblioteca: lista con orden por fecha y búsqueda
+- [~] **T10.** Biblioteca: lista con orden por fecha y búsqueda (código y tests listos; falta probar en Chrome real)
 - [~] **T11.** Play con la regla de "qué grabación suena primero" (master/export > grabado > procesado > librería, el más largo de cada grupo), saltando el silencio inicial, con barra de progreso, botón de parar y un solo audio a la vez. Código y tests de la lógica de prioridad listos; falta probar en Chrome real, sobre todo el salto de silencio (no se puede probar con tests automáticos)
-- [ ] **T12.** Ficha de proyecto: pistas, clips y estado de cada archivo
+- [~] **T12.** Ficha de proyecto: pistas, clips y estado de cada archivo (código listo; falta probar en Chrome real)
 
 ## Notas de la sesión de hoy
 

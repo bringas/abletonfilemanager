@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseAlsProject } from './lib/alsReader'
+import { coincideBusqueda } from './lib/busqueda'
 import { elegirMejorClip } from './lib/clipPriority'
 import { db, ROOT_ID, type ProjectRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
@@ -49,6 +50,16 @@ function App() {
   const [reproduciendoPath, setReproduciendoPath] = useState<string | null>(null)
   const [progresoReproduccion, setProgresoReproduccion] = useState(0)
 
+  const [busqueda, setBusqueda] = useState('')
+  const [fichaAbierta, setFichaAbierta] = useState<string | null>(null)
+  const [fichaClips, setFichaClips] = useState<Record<string, boolean[]>>({})
+
+  const proyectosVisibles = useMemo(() => {
+    return projects
+      .filter((p) => coincideBusqueda(p, busqueda))
+      .sort((a, b) => (b.lastModified ?? 0) - (a.lastModified ?? 0))
+  }, [projects, busqueda])
+
   function pararReproduccion() {
     audioElRef.current?.pause()
     if (urlActual) URL.revokeObjectURL(urlActual)
@@ -92,9 +103,11 @@ function App() {
       for (const { handle, path } of alsFiles) {
         const carpetaProyecto = path.split('/').slice(0, -1)
         let entry: ProjectEntry
+        let lastModified: number | undefined
 
         try {
           const file = await handle.getFile()
+          lastModified = file.lastModified
           const bytes = new Uint8Array(await file.arrayBuffer())
           const info = await parseAlsProject(bytes)
 
@@ -112,9 +125,9 @@ function App() {
             numeroDeClips: info.audioClips.length,
             algunoEncontrado,
           })
-          entry = { path, info, estado }
+          entry = { path, info, estado, lastModified }
         } catch {
-          entry = { path, error: 'No se pudo leer este archivo', estado: 'no legible' }
+          entry = { path, error: 'No se pudo leer este archivo', estado: 'no legible', lastModified }
         }
 
         entries.push(entry)
@@ -192,6 +205,24 @@ function App() {
     await audioEl.play()
   }
 
+  async function toggleFicha(project: ProjectEntry) {
+    if (fichaAbierta === project.path) {
+      setFichaAbierta(null)
+      return
+    }
+    setFichaAbierta(project.path)
+
+    if (!project.info || !raizHandle || fichaClips[project.path]) return
+
+    const carpetaProyecto = project.path.split('/').slice(0, -1)
+    const resultados: boolean[] = []
+    for (const clip of project.info.audioClips) {
+      const handle = await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex)
+      resultados.push(Boolean(handle))
+    }
+    setFichaClips((prev) => ({ ...prev, [project.path]: resultados }))
+  }
+
   return (
     <div className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold">ProjectRescue</h1>
@@ -239,9 +270,20 @@ function App() {
         </p>
       )}
 
+      {projects.length > 0 && (
+        <input
+          type="search"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por nombre de proyecto o de pista…"
+          className="mt-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        />
+      )}
+
       <ul className="mt-6 divide-y divide-gray-200">
-        {projects.map((project) => (
-          <li key={project.path} className="flex items-center justify-between gap-4 py-3">
+        {proyectosVisibles.map((project) => (
+          <li key={project.path} className="py-3">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <p className="font-medium">{project.path}</p>
               {project.error && <p className="text-sm text-red-600">{project.error}</p>}
@@ -285,6 +327,50 @@ function App() {
                   ▶ Reproducir
                 </button>
               ))}
+          </div>
+
+          {project.info && (
+            <>
+              <button
+                type="button"
+                onClick={() => toggleFicha(project)}
+                className="mt-1 text-xs text-violet-600 hover:underline"
+              >
+                {fichaAbierta === project.path ? 'Ocultar ficha' : 'Ver ficha'}
+              </button>
+
+              {fichaAbierta === project.path && (
+                <div className="mt-2 rounded-md bg-gray-50 p-3 text-sm">
+                  {project.info.tracks.map((trackName, i) => {
+                    const clipsDeLaPista = project.info?.audioClips
+                      .map((clip, idx) => ({ clip, idx }))
+                      .filter(({ clip }) => clip.track === trackName)
+                    return (
+                      <div key={`${trackName}-${i}`} className="mb-2 last:mb-0">
+                        <p className="font-medium">{trackName}</p>
+                        {!clipsDeLaPista || clipsDeLaPista.length === 0 ? (
+                          <p className="text-gray-500">Solo MIDI</p>
+                        ) : (
+                          <ul className="ml-3 list-disc text-gray-600">
+                            {clipsDeLaPista.map(({ clip, idx }) => (
+                              <li key={idx}>
+                                {clip.relativePath ?? '(ruta desconocida)'} —{' '}
+                                {fichaClips[project.path]
+                                  ? fichaClips[project.path][idx]
+                                    ? 'encontrado'
+                                    : 'no encontrado'
+                                  : 'comprobando…'}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
           </li>
         ))}
       </ul>

@@ -15,6 +15,8 @@ export interface ProjectRecord {
   info?: AlsProjectInfo
   error?: string
   estado?: EstadoPreescucha
+  /** Fecha de modificación del .als (timestamp), para ordenar la biblioteca. */
+  lastModified?: number
 }
 
 type ProjectRescueDB = Dexie & {
