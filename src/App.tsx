@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { parseAlsProject, type AlsProjectInfo } from './lib/alsReader'
+import { resolverSegmentos } from './lib/resolvePath'
 
 interface ProjectEntry {
   path: string
-  projectDirHandle: FileSystemDirectoryHandle
   info?: AlsProjectInfo
   error?: string
 }
 
 interface FoundAls {
   handle: FileSystemFileHandle
-  dirHandle: FileSystemDirectoryHandle
   path: string
 }
 
@@ -25,26 +24,25 @@ async function buscarArchivosAls(
     if (handle.kind === 'directory') {
       encontrados.push(...(await buscarArchivosAls(handle, entryPath)))
     } else if (name.toLowerCase().endsWith('.als')) {
-      encontrados.push({ handle, dirHandle, path: entryPath })
+      encontrados.push({ handle, path: entryPath })
     }
   }
 
   return encontrados
 }
 
-async function resolverArchivoRelativo(
-  dirHandle: FileSystemDirectoryHandle,
-  relativePath: string,
+async function resolverArchivo(
+  raiz: FileSystemDirectoryHandle,
+  segmentos: string[],
 ): Promise<FileSystemFileHandle | null> {
-  const partes = relativePath.split(/[/\\]/).filter(Boolean)
-  if (partes.length === 0) return null
+  if (segmentos.length === 0) return null
 
   try {
-    let carpeta = dirHandle
-    for (const carpetaNombre of partes.slice(0, -1)) {
-      carpeta = await carpeta.getDirectoryHandle(carpetaNombre)
+    let carpeta = raiz
+    for (const nombre of segmentos.slice(0, -1)) {
+      carpeta = await carpeta.getDirectoryHandle(nombre)
     }
-    return await carpeta.getFileHandle(partes[partes.length - 1])
+    return await carpeta.getFileHandle(segmentos[segmentos.length - 1])
   } catch {
     return null
   }
@@ -59,6 +57,7 @@ async function reproducir(handle: FileSystemFileHandle) {
 }
 
 function App() {
+  const [raizHandle, setRaizHandle] = useState<FileSystemDirectoryHandle | null>(null)
   const [projects, setProjects] = useState<ProjectEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [notSupported, setNotSupported] = useState(false)
@@ -74,17 +73,18 @@ function App() {
 
     try {
       const raiz = await window.showDirectoryPicker()
+      setRaizHandle(raiz)
       const archivos = await buscarArchivosAls(raiz)
 
       const entries: ProjectEntry[] = []
-      for (const { handle, dirHandle, path } of archivos) {
+      for (const { handle, path } of archivos) {
         try {
           const file = await handle.getFile()
           const bytes = new Uint8Array(await file.arrayBuffer())
           const info = await parseAlsProject(bytes)
-          entries.push({ path, projectDirHandle: dirHandle, info })
+          entries.push({ path, info })
         } catch {
-          entries.push({ path, projectDirHandle: dirHandle, error: 'No se pudo leer este archivo' })
+          entries.push({ path, error: 'No se pudo leer este archivo' })
         }
       }
 
@@ -100,9 +100,11 @@ function App() {
 
   async function onPlayClick(project: ProjectEntry) {
     const relativePath = project.info?.firstAudioClipRelativePath
-    if (!relativePath) return
+    if (!relativePath || !raizHandle) return
 
-    const audioHandle = await resolverArchivoRelativo(project.projectDirHandle, relativePath)
+    const carpetaProyecto = project.path.split('/').slice(0, -1)
+    const segmentos = resolverSegmentos(carpetaProyecto, relativePath)
+    const audioHandle = await resolverArchivo(raizHandle, segmentos)
     if (!audioHandle) return
 
     await reproducir(audioHandle)

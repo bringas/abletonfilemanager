@@ -8,5 +8,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    // Los .als reales de prueba pueden descomprimir a XML de varios MB; jsdom
+    // tarda más que un navegador real en analizarlo.
+    testTimeout: 20000,
   },
 })

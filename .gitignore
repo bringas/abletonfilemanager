@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Proyectos .als reales usados como fixtures de test: solo en local, nunca al repo.
+tests/fixtures/*.als
+!tests/fixtures/synthetic-*.als
