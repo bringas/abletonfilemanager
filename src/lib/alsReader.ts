@@ -10,6 +10,20 @@ export interface AudioClipInfo {
    * comparar clips dentro del mismo proyecto (mismo tempo).
    */
   durationBeats: number | null
+  /**
+   * false si el clip está dentro de un "take lane" (toma archivada por
+   * grabación repetida) o de un clip slot de Session View: Ableton no lo
+   * reproduce al abrir el proyecto, solo si lo activas a mano. Si no está
+   * presente (undefined), el clip está en el carril principal de la pista,
+   * que es lo que Ableton reproduce de verdad.
+   */
+  principal?: boolean
+  /**
+   * false si este clip queda oculto por defecto (toma archivada de más, o
+   * sobrante tras reducir el ruido de una pista con muchos clips). Lo calcula
+   * `reducirClipsPorPista`; no viene así directamente del .als.
+   */
+  mostrarPorDefecto?: boolean
 }
 
 export interface AlsProjectInfo {
@@ -102,11 +116,16 @@ function readAudioClips(doc: Document): AudioClipInfo[] {
       const fileRef = clipEl.querySelector('SampleRef > FileRef')
       if (!fileRef) continue
 
+      // Si el clip está dentro de un "take lane" (tomas archivadas) o de un
+      // clip slot de Session View, Ableton no lo reproduce por defecto.
+      const esArchivado = Boolean(clipEl.closest('TakeLane, ClipSlot'))
+
       clips.push({
         track: trackName,
         relativePath: readRelativePath(fileRef),
         originalFileSize: readOriginalFileSize(fileRef),
         durationBeats: readDurationBeats(clipEl),
+        ...(esArchivado ? { principal: false } : {}),
       })
     }
   }

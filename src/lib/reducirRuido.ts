@@ -1,15 +1,25 @@
 import type { AudioClipInfo } from './alsReader'
 import { audiosDentroDe, type AudioFileEntry } from './scanFolder'
 
-/** Más de esta cantidad de clips en una misma pista se considera "ruido" (tomas sueltas). */
+/** Más de esta cantidad de clips en un grupo se considera "ruido" (tomas sueltas). */
 const UMBRAL_RUIDO = 5
 
 /**
- * Cuando una pista tiene muchas tomas grabadas (algunos proyectos tienen
- * cientos o miles), nos quedamos solo con la más reciente (la que
- * probablemente te quedaste) y la más larga (probablemente la toma
- * completa, no un fragmento). El resto se descarta, tanto de la ficha como
- * de qué suena primero.
+ * Decide, pista por pista, qué clips se muestran por defecto (en la ficha y
+ * para elegir qué suena) y cuáles quedan ocultos detrás del interruptor
+ * "mostrar otros archivos". No borra nada: todo sigue en el resultado, solo
+ * marcado con `mostrarPorDefecto`.
+ *
+ * Primero mira si la pista tiene clips en su carril principal (lo que
+ * Ableton reproduce de verdad al abrir el proyecto). Si los tiene, esos son
+ * los que se muestran, y toda toma archivada en un "take lane" queda oculta.
+ * Si no tiene ninguno (todo quedó en tomas archivadas, sin "comp" elegido),
+ * usamos esas tomas como mejor estimación.
+ *
+ * Dentro del grupo que se muestra, y también dentro del que queda oculto, si
+ * hay más de `UMBRAL_RUIDO` clips nos quedamos solo con el más reciente (por
+ * fecha del archivo) y el más largo; el resto se descarta para no acumular
+ * miles de clips por resolver.
  */
 export function reducirClipsPorPista(
   clips: AudioClipInfo[],
@@ -27,23 +37,38 @@ export function reducirClipsPorPista(
 
   const resultado: AudioClipInfo[] = []
   for (const clipsDePista of porPista.values()) {
-    if (clipsDePista.length <= UMBRAL_RUIDO) {
-      resultado.push(...clipsDePista)
-      continue
-    }
+    const principales = clipsDePista.filter((clip) => clip.principal !== false)
+    const secundarios = clipsDePista.filter((clip) => clip.principal === false)
 
-    const masLargo = clipsDePista.reduce((mejor, actual) =>
-      (actual.durationBeats ?? 0) > (mejor.durationBeats ?? 0) ? actual : mejor,
-    )
-    const masReciente = clipsDePista.reduce((mejor, actual) =>
-      fechaDeClip(actual, indiceDelProyecto) > fechaDeClip(mejor, indiceDelProyecto) ? actual : mejor,
-    )
+    const grupoMostrado = principales.length > 0 ? principales : secundarios
+    const grupoOculto = principales.length > 0 ? secundarios : []
 
-    resultado.push(masReciente)
-    if (masLargo !== masReciente) resultado.push(masLargo)
+    resultado.push(...reducirGrupo(grupoMostrado, indiceDelProyecto, true))
+    resultado.push(...reducirGrupo(grupoOculto, indiceDelProyecto, false))
   }
 
   return resultado
+}
+
+function reducirGrupo(
+  clips: AudioClipInfo[],
+  indiceDelProyecto: AudioFileEntry[],
+  mostrarPorDefecto: boolean,
+): AudioClipInfo[] {
+  if (clips.length === 0) return []
+  if (clips.length <= UMBRAL_RUIDO) {
+    return clips.map((clip) => ({ ...clip, mostrarPorDefecto }))
+  }
+
+  const masLargo = clips.reduce((mejor, actual) =>
+    (actual.durationBeats ?? 0) > (mejor.durationBeats ?? 0) ? actual : mejor,
+  )
+  const masReciente = clips.reduce((mejor, actual) =>
+    fechaDeClip(actual, indiceDelProyecto) > fechaDeClip(mejor, indiceDelProyecto) ? actual : mejor,
+  )
+
+  const elegidos = masLargo === masReciente ? [masReciente] : [masReciente, masLargo]
+  return elegidos.map((clip) => ({ ...clip, mostrarPorDefecto }))
 }
 
 function fechaDeClip(clip: AudioClipInfo, indiceDelProyecto: AudioFileEntry[]): number {

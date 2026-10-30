@@ -56,4 +56,16 @@ describe('parseAlsProject con proyectos reales', () => {
       }
     })
   }
+
+  // camoeli2.als tiene una pista grabada muchas veces: casi todas esas tomas
+  // quedaron en "take lanes" (carriles que Ableton no reproduce por defecto),
+  // así que deben venir marcadas como no principales.
+  const rutaCamoeli2 = resolve(process.cwd(), 'tests/fixtures', 'camoeli2.als')
+  it.skipIf(!existsSync(rutaCamoeli2))('marca como no principales las tomas archivadas en carriles', async () => {
+    const buffer = await readFile(rutaCamoeli2)
+    const info = await parseAlsProject(new Uint8Array(buffer))
+
+    const archivadas = info.audioClips.filter((clip) => clip.principal === false)
+    expect(archivadas.length).toBeGreaterThan(100)
+  })
 })

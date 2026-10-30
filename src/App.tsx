@@ -266,8 +266,12 @@ function App() {
   async function onPlayClick(project: ProjectEntry) {
     if (!project.info || !raizHandle || !(await asegurarPermiso())) return
 
+    // Solo se reproducen por defecto los clips que se muestran por
+    // defecto (lo que Ableton reproduciría); las tomas archivadas/sobrantes
+    // quedan fuera salvo que el usuario las revele con el interruptor.
+    const clipsVisibles = project.info.audioClips.filter((clip) => clip.mostrarPorDefecto !== false)
     const candidatos = filtrarRepetidosSiProcede(
-      project.info.audioClips,
+      clipsVisibles,
       repeticiones,
       UMBRAL_REPETICION,
       ignorarRepetidos,
@@ -493,84 +497,76 @@ function App() {
                       checked={mostrarOtrosArchivos}
                       onChange={(e) => setMostrarOtrosArchivos(e.target.checked)}
                     />
-                    Mostrar otros archivos de audio (export/bounce sueltos, no están en ninguna pista)
+                    Mostrar también las tomas archivadas (no están en el carril principal de la pista)
                   </label>
-                  {(() => {
-                    const pistasReales = project.info.tracks.filter((t) => t !== PISTA_EXPORTADO)
-                    const hayArchivosSueltos = project.info.tracks.includes(PISTA_EXPORTADO)
-                    const hayClipsEnPistasReales = project.info.audioClips.some(
-                      (c) => c.track !== PISTA_EXPORTADO,
-                    )
-                    const pistasAMostrar = mostrarOtrosArchivos ? project.info.tracks : pistasReales
+                  {project.info.tracks.map((trackName, i) => {
+                    const resueltos = fichaClips[project.path]
+                    const todosDeLaPista = project.info?.audioClips
+                      .map((clip, idx) => ({ clip, idx }))
+                      .filter(({ clip }) => clip.track === trackName)
+                    const baseDeLaPista = mostrarOtrosArchivos
+                      ? todosDeLaPista
+                      : (todosDeLaPista ?? []).filter(({ clip }) => clip.mostrarPorDefecto !== false)
+                    const archivadasOcultas = (todosDeLaPista?.length ?? 0) - (baseDeLaPista?.length ?? 0)
+                    const noEncontrados = resueltos
+                      ? (baseDeLaPista ?? []).filter(({ idx }) => resueltos[idx] === null).length
+                      : 0
+                    const clipsDeLaPista = mostrarNoEncontrados
+                      ? baseDeLaPista
+                      : (baseDeLaPista ?? []).filter(({ idx }) => !resueltos || resueltos[idx] !== null)
                     return (
-                      <>
-                        {!hayClipsEnPistasReales && hayArchivosSueltos && !mostrarOtrosArchivos && (
-                          <p className="mb-2 text-gray-400">
-                            Ninguna pista tiene grabaciones. Hay un archivo de exportación suelto —
-                            márcalo arriba para verlo.
+                      <div key={`${trackName}-${i}`} className="mb-2 last:mb-0">
+                        <p className="font-medium">{trackName}</p>
+                        {!todosDeLaPista || todosDeLaPista.length === 0 ? (
+                          <p className="text-gray-500">Solo MIDI</p>
+                        ) : clipsDeLaPista && clipsDeLaPista.length === 0 ? (
+                          <p className="text-gray-400">
+                            {noEncontrados > 0
+                              ? `Ninguna grabación encontrada (${noEncontrados} oculta${noEncontrados === 1 ? '' : 's'})`
+                              : 'comprobando…'}
+                          </p>
+                        ) : (
+                          <ul className="ml-3 list-disc text-gray-600">
+                            {clipsDeLaPista?.map(({ clip, idx }) => {
+                              const handle = resueltos?.[idx]
+                              const veces = vecesRepetido(clip, repeticiones)
+                              return (
+                                <li key={idx} className="flex items-center gap-2">
+                                  <span>
+                                    {clip.relativePath ?? '(ruta desconocida)'} —{' '}
+                                    {!resueltos ? 'comprobando…' : handle ? 'encontrado' : 'no encontrado'}
+                                    {veces >= 2 && (
+                                      <span className="text-gray-400"> · en {veces} proyectos</span>
+                                    )}
+                                  </span>
+                                  {handle && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onPlayClipClick(project, handle)}
+                                      className="rounded-full border border-violet-600 px-2 py-0.5 text-xs text-violet-600 hover:bg-violet-50"
+                                    >
+                                      ▶
+                                    </button>
+                                  )}
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        )}
+                        {!mostrarNoEncontrados && noEncontrados > 0 && clipsDeLaPista && clipsDeLaPista.length > 0 && (
+                          <p className="text-xs text-gray-400">
+                            + {noEncontrados} no encontrada{noEncontrados === 1 ? '' : 's'} (ocultas)
                           </p>
                         )}
-                        {pistasAMostrar.map((trackName, i) => {
-                          const resueltos = fichaClips[project.path]
-                          const todosDeLaPista = project.info?.audioClips
-                            .map((clip, idx) => ({ clip, idx }))
-                            .filter(({ clip }) => clip.track === trackName)
-                          const noEncontrados = resueltos
-                            ? (todosDeLaPista ?? []).filter(({ idx }) => resueltos[idx] === null).length
-                            : 0
-                          const clipsDeLaPista = mostrarNoEncontrados
-                            ? todosDeLaPista
-                            : (todosDeLaPista ?? []).filter(({ idx }) => !resueltos || resueltos[idx] !== null)
-                          return (
-                            <div key={`${trackName}-${i}`} className="mb-2 last:mb-0">
-                              <p className="font-medium">{trackName}</p>
-                              {!todosDeLaPista || todosDeLaPista.length === 0 ? (
-                                <p className="text-gray-500">Solo MIDI</p>
-                              ) : clipsDeLaPista && clipsDeLaPista.length === 0 ? (
-                                <p className="text-gray-400">
-                                  {noEncontrados > 0
-                                    ? `Ninguna grabación encontrada (${noEncontrados} oculta${noEncontrados === 1 ? '' : 's'})`
-                                    : 'comprobando…'}
-                                </p>
-                              ) : (
-                                <ul className="ml-3 list-disc text-gray-600">
-                                  {clipsDeLaPista?.map(({ clip, idx }) => {
-                                    const handle = resueltos?.[idx]
-                                    const veces = vecesRepetido(clip, repeticiones)
-                                    return (
-                                      <li key={idx} className="flex items-center gap-2">
-                                        <span>
-                                          {clip.relativePath ?? '(ruta desconocida)'} —{' '}
-                                          {!resueltos ? 'comprobando…' : handle ? 'encontrado' : 'no encontrado'}
-                                          {veces >= 2 && (
-                                            <span className="text-gray-400"> · en {veces} proyectos</span>
-                                          )}
-                                        </span>
-                                        {handle && (
-                                          <button
-                                            type="button"
-                                            onClick={() => onPlayClipClick(project, handle)}
-                                            className="rounded-full border border-violet-600 px-2 py-0.5 text-xs text-violet-600 hover:bg-violet-50"
-                                          >
-                                            ▶
-                                          </button>
-                                        )}
-                                      </li>
-                                    )
-                                  })}
-                                </ul>
-                              )}
-                              {!mostrarNoEncontrados && noEncontrados > 0 && clipsDeLaPista && clipsDeLaPista.length > 0 && (
-                                <p className="text-xs text-gray-400">
-                                  + {noEncontrados} no encontrada{noEncontrados === 1 ? '' : 's'} (ocultas)
-                                </p>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </>
+                        {!mostrarOtrosArchivos && archivadasOcultas > 0 && (
+                          <p className="text-xs text-gray-400">
+                            + {archivadasOcultas} toma{archivadasOcultas === 1 ? '' : 's'} archivada
+                            {archivadasOcultas === 1 ? '' : 's'} (oculta{archivadasOcultas === 1 ? '' : 's'})
+                          </p>
+                        )}
+                      </div>
                     )
-                  })()}
+                  })}
                 </div>
               )}
             </>
