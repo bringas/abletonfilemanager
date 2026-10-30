@@ -686,7 +686,14 @@ function App() {
 
         const tramo = calcularTramo(clip)
         const offset = tramo?.inicio ?? 0
-        const duracion = Math.max(0, tramo ? tramo.fin - offset : buffer.duration - offset)
+        const duracionDisponible = Math.max(0, tramo ? tramo.fin - offset : buffer.duration - offset)
+        // La grabación original no siempre está al mismo tempo que la
+        // canción; Ableton la "estira" para que quepa justo en su hueco del
+        // arreglo. Aquí no estiramos el audio, así que si dejáramos sonar
+        // todo el tramo, se solaparía con el siguiente clip de la pista.
+        // Cortamos en el hueco real para que no se pise con el de al lado.
+        const huecoEnElArreglo = clip.durationBeats != null ? (clip.durationBeats * 60) / bpm : null
+        const duracion = Math.min(duracionDisponible, huecoEnElArreglo ?? duracionDisponible)
         if (duracion <= 0) continue
 
         const posicion = clip.startBeats != null ? (clip.startBeats * 60) / bpm : 0

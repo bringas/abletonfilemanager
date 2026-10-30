@@ -34,6 +34,10 @@ La barra de progreso del reproductor individual ahora es clicable para saltar a 
 
 La mezcla completa también lo tiene ahora: como las fuentes de Web Audio no se pueden "mover" una vez arrancadas, saltar para la mezcla reprograma todas las pistas desde el nuevo punto (sin volver a leer ni decodificar los archivos: se quedan ya decodificados en memoria mientras suena la mezcla, ver `reprogramarMezclaDesde` en App.tsx).
 
+## Arreglo: audios que se pisaban en la mezcla completa (31 oct 2026)
+
+El usuario reportó que en "la religiosidad" se oían dos bajos a la vez (y algo parecido en guitarras) donde solo debía sonar uno. Causa: la grabación original no siempre está al mismo tempo que la canción — Ableton la "estira" para que encaje justo en su hueco del arreglo, pero nuestra mezcla reproduce el audio tal cual, sin estirarlo. Si el tramo real del clip (calculado con los marcadores de tempo) dura más que el hueco que le toca en el arreglo, se metía por encima del siguiente clip de la misma pista. Arreglado limitando la duración de cada clip en la mezcla a `durationBeats` (su hueco real en el arreglo), nunca más. El reproductor individual no cambia: ahí sí interesa oír el tramo completo tal cual es.
+
 ## Nueva función: mezcla completa del proyecto (31 oct 2026)
 
 A petición del usuario, ahora hay un botón "▶ Mezcla completa" junto a "Reproducir": decodifica el clip principal de cada pista con audio y los reproduce todos a la vez con Web Audio API, cada uno en su posición correcta del arreglo (usando `startBeats` + el tramo real del clip que ya calculábamos para el reproductor normal). Es una maqueta cruda: sin los plugins, volúmenes ni paneo del proyecto real, y sin las pistas MIDI (no hay forma de sintetizarlas desde aquí). Para que sumar varias pistas no sature, el volumen de cada una baja según cuántas pistas sumen (`1/√n`). Falta probar en Chrome real.
