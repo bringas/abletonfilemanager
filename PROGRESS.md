@@ -2,6 +2,10 @@
 
 Última actualización: 31 oct 2026.
 
+## MVP listo (31 oct 2026)
+
+Confirmado por el usuario tras probar a fondo con su biblioteca real: catalogado, preescucha (individual y mezcla completa), búsqueda, alias/etiquetas/favoritos, reescaneo y el rediseño visual. Pendiente de verdad para más adelante: investigar "Congelación"/Freeze (falta un proyecto de ejemplo) y los samples huérfanos — ambos en [IDEAS.md](../IDEAS.md).
+
 - [x] **T1.** Crear el proyecto (Vite, React, TypeScript, Tailwind), Git, CLAUDE.md, PROGRESS.md e IDEAS.md
 - [x] **T2.** Subir a GitHub y publicar la página vacía en Vercel — https://github.com/bringas/abletonfilemanager y https://abletonfilemanager.vercel.app/
 - [x] **T3.** Lector: función que recibe los bytes de un `.als` y devuelve versión de Live, BPM y pistas, con tests sobre los cinco fixtures (3 sintéticos + 5 proyectos reales del usuario, 3 de Live 9.7.1 y 2 de Live 11.3.13)
@@ -24,9 +28,9 @@
 2. [x] Arreglado falso positivo "Con audio": la búsqueda de respaldo por nombre (cuando falta la ruta exacta) ahora solo mira dentro de la propia carpeta del proyecto, no toda la carpeta raíz — confirmado por el usuario
 3. [x] Detectar master/bounce (export suelto en la carpeta, no referenciado en el `.als`, con palabras clave ampliadas) — confirmado por el usuario
 4. [x] Samples repetidos entre proyectos: contador por archivo + interruptor "ignorar grabaciones que se repiten en 3+ proyectos" al elegir qué suena, con el conteo visible en la ficha — confirmado por el usuario
-5. [~] **Ruido dentro de una misma pista** (código y tests listos; falta probar en Chrome real): algunas pistas tienen cientos o miles de tomas cortas grabadas. Ahora, si una pista tiene más de 5 clips, nos quedamos solo con el más reciente (por fecha del archivo) y el más largo — tanto en la ficha como al elegir qué suena. El umbral (5) es un valor por defecto, se puede ajustar
-6. [~] Ocultar por defecto en la ficha los audios "no encontrados" (con una casilla para mostrarlos si hace falta) — falta probar en Chrome real
-7. [~] Se descubrió la causa real de los proyectos con "cientos de clips por pista": Ableton guarda las tomas repetidas en "take lanes" (carriles de tomas), que **no suenan por defecto**, solo el carril principal de la pista. Ahora el lector de `.als` detecta esto (campo `principal` en cada clip) y, por pista, solo se muestra y se puede reproducir por defecto lo que está en el carril principal. Si una pista no tiene nada ahí (todo quedó en tomas archivadas), esa pista no tiene preview por defecto — no se adivina una "mejor estimación". El resto queda disponible solo tras marcar "Mostrar también las tomas archivadas". Esto sustituye y mejora el punto 7 anterior (que solo miraba los export sueltos) — falta probar en Chrome real con un proyecto de los pesados (700+ clips)
+5. [x] **Ruido dentro de una misma pista**: algunas pistas tienen cientos o miles de tomas cortas grabadas. Si una pista tiene más de 5 clips, nos quedamos solo con el más reciente (por fecha del archivo) y el más largo — tanto en la ficha como al elegir qué suena. El umbral (5) es un valor por defecto, se puede ajustar — confirmado por el usuario
+6. [x] Ocultar por defecto en la ficha los audios "no encontrados" (con una casilla para mostrarlos si hace falta) — confirmado por el usuario
+7. [x] Se descubrió la causa real de los proyectos con "cientos de clips por pista": Ableton guarda las tomas repetidas en "take lanes" (carriles de tomas), que **no suenan por defecto**, solo el carril principal de la pista. El lector de `.als` detecta esto (campo `principal` en cada clip) y, por pista, solo se muestra y se puede reproducir por defecto lo que está en el carril principal. Si una pista no tiene nada ahí (todo quedó en tomas archivadas), esa pista no tiene preview por defecto — no se adivina una "mejor estimación". El resto queda disponible solo tras marcar "Mostrar también las tomas archivadas" — confirmado por el usuario con un proyecto de los pesados (1900+ clips)
 
 ## Avanzar y retroceder la reproducción (31 oct 2026)
 
@@ -40,7 +44,7 @@ El usuario reportó que en "la religiosidad" se oían dos bajos a la vez (y algo
 
 ## Nueva función: mezcla completa del proyecto (31 oct 2026)
 
-A petición del usuario, ahora hay un botón "▶ Mezcla completa" junto a "Reproducir": decodifica el clip principal de cada pista con audio y los reproduce todos a la vez con Web Audio API, cada uno en su posición correcta del arreglo (usando `startBeats` + el tramo real del clip que ya calculábamos para el reproductor normal). Es una maqueta cruda: sin los plugins, volúmenes ni paneo del proyecto real, y sin las pistas MIDI (no hay forma de sintetizarlas desde aquí). Para que sumar varias pistas no sature, el volumen de cada una baja según cuántas pistas sumen (`1/√n`). Falta probar en Chrome real.
+A petición del usuario, ahora hay un botón "▶ Mezcla completa" junto a "Reproducir": decodifica el clip principal de cada pista con audio y los reproduce todos a la vez con Web Audio API, cada uno en su posición correcta del arreglo (usando `startBeats` + el tramo real del clip que ya calculábamos para el reproductor normal). Es una maqueta cruda: sin los plugins, volúmenes ni paneo del proyecto real, y sin las pistas MIDI (no hay forma de sintetizarlas desde aquí). Para que sumar varias pistas no sature, el volumen de cada una baja según cuántas pistas sumen (`1/√n`). Confirmado por el usuario (tras el arreglo de solapes de la sección anterior).
 
 ## Arreglo importante (2): sonaba el trozo equivocado del archivo (31 oct 2026)
 
@@ -59,13 +63,13 @@ Arreglado en dos sitios: `src/lib/alsReader.ts` (un tamaño 0 se trata como "no 
 
 ## Rediseño visual (brutalista/post-punk, 3 columnas)
 
-- [~] Pantalla nueva de 3 columnas: árbol de carpetas + estadísticas (izquierda), lista de proyectos de la carpeta elegida (centro), ficha del proyecto seleccionado con pestañas PISTAS/INFO (derecha). Tipografía monoespaciada, sin bordes redondeados ni degradados.
-- [~] Cambiado a tema claro (fondo blanco roto, tipografía negra) según el segundo mockup del usuario; antes era tema oscuro. Misma estructura, solo cambió la paleta de colores.
+- [x] Pantalla nueva de 3 columnas: árbol de carpetas + estadísticas (izquierda), lista de proyectos de la carpeta elegida (centro), ficha del proyecto seleccionado con pestañas PISTAS/INFO (derecha). Tipografía monoespaciada, sin bordes redondeados ni degradados.
+- [x] Cambiado a tema claro (fondo blanco roto, tipografía negra) según el segundo mockup del usuario; antes era tema oscuro. Misma estructura, solo cambió la paleta de colores.
 - El árbol de carpetas se calcula a partir de las rutas ya escaneadas (`src/lib/folderTree.ts`), no cambia cómo se escanea la carpeta.
 - Las formas de onda son decorativas (no es el audio real, ver IDEAS.md).
 - "OPEN IN ABLETON" del mockup no es posible desde una web (ninguna página puede abrir una app de escritorio); en su lugar hay un botón "Copiar ruta".
 - Se conserva toda la funcionalidad: alias/etiquetas/favorito (ahora en la pestaña INFO), ignorar repetidos, ocultar no encontrados, ocultar tomas archivadas, reproducir con parada y barra de progreso.
-- Falta probar en Chrome real con la biblioteca completa.
+- Confirmado por el usuario con su biblioteca real.
 
 ## Notas de la sesión de hoy
 
