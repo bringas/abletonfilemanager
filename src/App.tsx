@@ -5,6 +5,7 @@ import { elegirMejorClip } from './lib/clipPriority'
 import { db, ROOT_ID, type ProjectRecord, type UserMetaRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
 import { resolverClip } from './lib/resolvePath'
+import { debeReutilizarProyecto } from './lib/rescan'
 import { recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
 import { encontrarInicioSinSilencio } from './lib/silenceSkip'
 
@@ -100,9 +101,16 @@ function App() {
     }
   }, [])
 
-  async function escanearCarpeta(raiz: FileSystemDirectoryHandle) {
+  /**
+   * reutilizarExistentes=true es "Buscar cambios": si un .als no cambió desde
+   * el último escaneo (misma fecha de modificación), no lo vuelve a leer ni a
+   * resolver sus audios, solo reutiliza lo que ya teníamos guardado.
+   */
+  async function escanearCarpeta(raiz: FileSystemDirectoryHandle, reutilizarExistentes = false) {
+    const existentesPorPath = new Map(projects.map((p) => [p.path, p]))
+
     setLoading(true)
-    setProjects([])
+    if (!reutilizarExistentes) setProjects([])
     setProgreso(null)
 
     try {
@@ -120,30 +128,40 @@ function App() {
         try {
           const file = await handle.getFile()
           lastModified = file.lastModified
-          const bytes = new Uint8Array(await file.arrayBuffer())
-          const info = await parseAlsProject(bytes)
 
-          let algunoEncontrado = false
-          for (const clip of info.audioClips) {
-            const encontrado = await resolverClip(raiz, carpetaProyecto, clip, audioFiles)
-            if (encontrado) {
-              algunoEncontrado = true
-              break
+          const existente = existentesPorPath.get(path)
+          if (debeReutilizarProyecto(existente, lastModified, reutilizarExistentes)) {
+            entry = existente as ProjectEntry
+          } else {
+            const bytes = new Uint8Array(await file.arrayBuffer())
+            const info = await parseAlsProject(bytes)
+
+            let algunoEncontrado = false
+            for (const clip of info.audioClips) {
+              const encontrado = await resolverClip(raiz, carpetaProyecto, clip, audioFiles)
+              if (encontrado) {
+                algunoEncontrado = true
+                break
+              }
             }
-          }
 
-          const estado = calcularEstado({
-            tieneError: false,
-            numeroDeClips: info.audioClips.length,
-            algunoEncontrado,
-          })
-          entry = { path, info, estado, lastModified }
+            const estado = calcularEstado({
+              tieneError: false,
+              numeroDeClips: info.audioClips.length,
+              algunoEncontrado,
+            })
+            entry = { path, info, estado, lastModified }
+          }
         } catch {
           entry = { path, error: 'No se pudo leer este archivo', estado: 'no legible', lastModified }
         }
 
         entries.push(entry)
-        setProjects((prev) => [...prev, entry])
+        if (reutilizarExistentes) {
+          setProjects(entries.slice())
+        } else {
+          setProjects((prev) => [...prev, entry])
+        }
         setProgreso((prev) => (prev ? { ...prev, leidos: prev.leidos + 1 } : prev))
       }
 
@@ -177,6 +195,16 @@ function App() {
     if (!raizHandle) return
     const permiso = await raizHandle.requestPermission({ mode: 'read' })
     setNecesitaPermiso(permiso !== 'granted')
+  }
+
+  async function buscarCambios() {
+    if (!raizHandle) return
+    if (necesitaPermiso) {
+      const permiso = await raizHandle.requestPermission({ mode: 'read' })
+      setNecesitaPermiso(permiso !== 'granted')
+      if (permiso !== 'granted') return
+    }
+    await escanearCarpeta(raizHandle, true)
   }
 
   async function onPlayClick(project: ProjectEntry) {
@@ -258,6 +286,17 @@ function App() {
             className="rounded-md border border-violet-600 px-4 py-2 text-violet-600 hover:bg-violet-50 disabled:opacity-50"
           >
             Reconectar carpeta
+          </button>
+        )}
+
+        {raizHandle && !necesitaPermiso && (
+          <button
+            type="button"
+            onClick={buscarCambios}
+            disabled={loading}
+            className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Buscar cambios
           </button>
         )}
       </div>
