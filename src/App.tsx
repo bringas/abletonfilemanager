@@ -190,6 +190,9 @@ function App() {
   const [urlActual, setUrlActual] = useState<string | null>(null)
   const [reproduciendoPath, setReproduciendoPath] = useState<string | null>(null)
   const [progresoReproduccion, setProgresoReproduccion] = useState(0)
+  // Límites del trozo que suena ahora mismo (null = el archivo entero), para
+  // poder avanzar/retroceder sin salirse del clip.
+  const [tramoActivo, setTramoActivo] = useState<{ inicio: number; fin: number } | null>(null)
 
   // Mezcla completa: suma todas las pistas con Web Audio API (no usa el
   // <audio> de arriba, que solo reproduce un archivo a la vez).
@@ -261,6 +264,7 @@ function App() {
     setUrlActual(null)
     setReproduciendoPath(null)
     setProgresoReproduccion(0)
+    setTramoActivo(null)
   }
 
   function pararMezcla() {
@@ -476,6 +480,9 @@ function App() {
 
     audioEl.src = url
     audioEl.currentTime = tramo?.inicio ?? 0
+    audioEl.onloadedmetadata = () => {
+      setTramoActivo({ inicio: tramo?.inicio ?? 0, fin: tramo?.fin ?? audioEl.duration })
+    }
     audioEl.ontimeupdate = () => {
       const inicio = tramo?.inicio ?? 0
       const fin = tramo?.fin ?? audioEl.duration
@@ -488,7 +495,32 @@ function App() {
     setUrlActual(url)
     setReproduciendoPath(path)
     setProgresoReproduccion(0)
+    setTramoActivo({ inicio: tramo?.inicio ?? 0, fin: tramo?.fin ?? Number.POSITIVE_INFINITY })
     await audioEl.play()
+  }
+
+  /** Lleva la reproducción al segundo que corresponda a esa fracción (0 a 1) de la barra de progreso. */
+  function buscarEnProgreso(fraccion: number) {
+    const audioEl = audioElRef.current
+    if (!audioEl || !tramoActivo) return
+    const fin = Number.isFinite(tramoActivo.fin) ? tramoActivo.fin : audioEl.duration
+    if (!Number.isFinite(fin)) return
+    const destino = tramoActivo.inicio + Math.min(1, Math.max(0, fraccion)) * (fin - tramoActivo.inicio)
+    audioEl.currentTime = destino
+    const total = fin - tramoActivo.inicio
+    setProgresoReproduccion(total > 0 ? (destino - tramoActivo.inicio) / total : 0)
+  }
+
+  /** Avanza o retrocede la reproducción `segundos` (negativo para retroceder), sin salirse del tramo. */
+  function saltar(segundos: number) {
+    const audioEl = audioElRef.current
+    if (!audioEl || !tramoActivo) return
+    const fin = Number.isFinite(tramoActivo.fin) ? tramoActivo.fin : audioEl.duration
+    if (!Number.isFinite(fin)) return
+    const destino = Math.min(fin, Math.max(tramoActivo.inicio, audioEl.currentTime + segundos))
+    audioEl.currentTime = destino
+    const total = fin - tramoActivo.inicio
+    setProgresoReproduccion(total > 0 ? (destino - tramoActivo.inicio) / total : 0)
   }
 
   async function onPlayClick(project: ProjectEntry) {
@@ -920,8 +952,34 @@ function App() {
                 )}
 
                 {reproduciendoPath === proyectoActivo.path && (
-                  <div className="mt-2 h-1 w-full max-w-xs overflow-hidden bg-[#ddd9cf]">
-                    <div className="h-full bg-[#15130f]" style={{ width: `${progresoReproduccion * 100}%` }} />
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => saltar(-5)}
+                      aria-label="Retroceder 5 segundos"
+                      className="shrink-0 text-[14px] text-[#58544b] hover:text-[#15130f]"
+                    >
+                      ⏪
+                    </button>
+                    <div
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        buscarEnProgreso((e.clientX - rect.left) / rect.width)
+                      }}
+                      className="w-full max-w-xs cursor-pointer py-2"
+                    >
+                      <div className="h-1 w-full overflow-hidden bg-[#ddd9cf]">
+                        <div className="h-full bg-[#15130f]" style={{ width: `${progresoReproduccion * 100}%` }} />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => saltar(5)}
+                      aria-label="Avanzar 5 segundos"
+                      className="shrink-0 text-[14px] text-[#58544b] hover:text-[#15130f]"
+                    >
+                      ⏩
+                    </button>
                   </div>
                 )}
 

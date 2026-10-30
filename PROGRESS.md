@@ -28,6 +28,10 @@
 6. [~] Ocultar por defecto en la ficha los audios "no encontrados" (con una casilla para mostrarlos si hace falta) — falta probar en Chrome real
 7. [~] Se descubrió la causa real de los proyectos con "cientos de clips por pista": Ableton guarda las tomas repetidas en "take lanes" (carriles de tomas), que **no suenan por defecto**, solo el carril principal de la pista. Ahora el lector de `.als` detecta esto (campo `principal` en cada clip) y, por pista, solo se muestra y se puede reproducir por defecto lo que está en el carril principal. Si una pista no tiene nada ahí (todo quedó en tomas archivadas), esa pista no tiene preview por defecto — no se adivina una "mejor estimación". El resto queda disponible solo tras marcar "Mostrar también las tomas archivadas". Esto sustituye y mejora el punto 7 anterior (que solo miraba los export sueltos) — falta probar en Chrome real con un proyecto de los pesados (700+ clips)
 
+## Avanzar y retroceder la reproducción (31 oct 2026)
+
+La barra de progreso del reproductor individual (no la mezcla completa) ahora es clicable para saltar a cualquier punto, y hay botones ⏪/⏩ para avanzar o retroceder 5 segundos. Nunca se sale del tramo real del clip (ni antes de su inicio ni después de su fin).
+
 ## Nueva función: mezcla completa del proyecto (31 oct 2026)
 
 A petición del usuario, ahora hay un botón "▶ Mezcla completa" junto a "Reproducir": decodifica el clip principal de cada pista con audio y los reproduce todos a la vez con Web Audio API, cada uno en su posición correcta del arreglo (usando `startBeats` + el tramo real del clip que ya calculábamos para el reproductor normal). Es una maqueta cruda: sin los plugins, volúmenes ni paneo del proyecto real, y sin las pistas MIDI (no hay forma de sintetizarlas desde aquí). Para que sumar varias pistas no sature, el volumen de cada una baja según cuántas pistas sumen (`1/√n`). Falta probar en Chrome real.
