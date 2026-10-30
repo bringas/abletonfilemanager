@@ -155,9 +155,16 @@ function readRelativePath(fileRef: Element): string | null {
   return [...carpetas, nombreArchivo].filter(Boolean).join('/')
 }
 
+/**
+ * Live deja a veces `OriginalFileSize Value="0"` (lo hemos visto en tomas
+ * archivadas en carriles de tomas): no es un tamaño real —ningún archivo
+ * pesa 0 bytes—, así que lo tratamos igual que si no estuviera.
+ */
 function readOriginalFileSize(fileRef: Element): number | null {
   const value = fileRef.querySelector(':scope > OriginalFileSize')?.getAttribute('Value')
-  return value ? Number.parseInt(value, 10) : null
+  if (!value) return null
+  const numero = Number.parseInt(value, 10)
+  return numero > 0 ? numero : null
 }
 
 function readDurationBeats(clipEl: Element): number | null {

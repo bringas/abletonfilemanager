@@ -68,4 +68,16 @@ describe('parseAlsProject con proyectos reales', () => {
     const archivadas = info.audioClips.filter((clip) => clip.principal === false)
     expect(archivadas.length).toBeGreaterThan(100)
   })
+
+  // Live a veces deja "OriginalFileSize Value=\"0\"" (no es un tamaño real).
+  // Si se cuela como si lo fuera, la app puede confundir un archivo con otro
+  // al buscar por nombre. Ninguna fixture real debería traer un 0.
+  for (const { file } of realFixtures) {
+    const ruta = resolve(process.cwd(), 'tests/fixtures', file)
+    it.skipIf(!existsSync(ruta))(`"${file}": ningún clip se queda con tamaño 0`, async () => {
+      const buffer = await readFile(ruta)
+      const info = await parseAlsProject(new Uint8Array(buffer))
+      expect(info.audioClips.some((clip) => clip.originalFileSize === 0)).toBe(false)
+    })
+  }
 })

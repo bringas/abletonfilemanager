@@ -31,7 +31,7 @@ describe('buscarEnIndice', () => {
     expect(resultado?.path).toBe('b/audio.wav')
   })
 
-  it('si no hay tamaño esperado, se queda con la primera coincidencia por nombre', () => {
+  it('si solo hay una coincidencia por nombre, se la queda aunque no sepamos el tamaño', () => {
     const indice = [entrada('audio.wav', 100, 'a/audio.wav')]
     const resultado = buscarEnIndice(indice, 'audio.wav', null)
     expect(resultado?.path).toBe('a/audio.wav')
@@ -40,5 +40,20 @@ describe('buscarEnIndice', () => {
   it('devuelve null si no hay ninguna coincidencia por nombre', () => {
     const indice = [entrada('otra-cosa.wav', 100)]
     expect(buscarEnIndice(indice, 'audio.wav', null)).toBeNull()
+  })
+
+  it('con varias coincidencias y sin tamaño que las distinga, no adivina (devuelve null)', () => {
+    // Pasa cuando se reutiliza una carpeta de sesión para varios proyectos:
+    // puede haber dos archivos distintos con el mismo nombre genérico.
+    const indice = [entrada('bass 0001.wav', 500, 'a/bass 0001.wav'), entrada('bass 0001.wav', 700, 'b/bass 0001.wav')]
+    expect(buscarEnIndice(indice, 'bass 0001.wav', null)).toBeNull()
+    // Un tamaño esperado de 0 (Live a veces lo deja así) tampoco es un tamaño real.
+    expect(buscarEnIndice(indice, 'bass 0001.wav', 0)).toBeNull()
+  })
+
+  it('con varias coincidencias, si el tamaño esperado coincide con una, esa se queda', () => {
+    const indice = [entrada('bass 0001.wav', 500, 'a/bass 0001.wav'), entrada('bass 0001.wav', 700, 'b/bass 0001.wav')]
+    const resultado = buscarEnIndice(indice, 'bass 0001.wav', 700)
+    expect(resultado?.path).toBe('b/bass 0001.wav')
   })
 })

@@ -75,8 +75,12 @@ export function audiosDentroDe(indiceAudios: AudioFileEntry[], carpeta: string[]
 
 /**
  * Busca un archivo en el índice de audios por nombre, confirmando con el
- * tamaño cuando lo tenemos (Live 11/12). Si no hay tamaño (Live 9/10) o
- * ningún tamaño coincide, se queda con la primera coincidencia por nombre.
+ * tamaño cuando lo tenemos (Live 11/12). Si hay un único archivo con ese
+ * nombre, nos lo quedamos aunque no sepamos el tamaño. Pero si hay VARIOS
+ * archivos con el mismo nombre (pasa cuando se reutiliza una carpeta de
+ * sesión para varios proyectos) y ninguno coincide en tamaño, no hay forma
+ * fiable de saber cuál es el correcto — mejor no adivinar y decir "no
+ * encontrado" que arriesgarnos a reproducir el archivo equivocado.
  */
 export function buscarEnIndice(
   indice: AudioFileEntry[],
@@ -85,11 +89,12 @@ export function buscarEnIndice(
 ): AudioFileEntry | null {
   const candidatos = indice.filter((f) => f.name === nombreArchivo)
   if (candidatos.length === 0) return null
+  if (candidatos.length === 1) return candidatos[0]
 
   if (tamanoEsperado != null) {
     const coincidencia = candidatos.find((f) => f.size === tamanoEsperado)
     if (coincidencia) return coincidencia
   }
 
-  return candidatos[0]
+  return null
 }
