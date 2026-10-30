@@ -16,11 +16,11 @@
 - [x] **T12.** Ficha de proyecto: pistas, clips y estado de cada archivo (probado por el usuario: funciona)
 - [x] **T13.** Alias, etiquetas y favoritos en la tabla `userMeta` (probado por el usuario: funciona)
 - [x] **T14.** Reconectar carpeta y reescaneo de proyectos nuevos o modificados (probado por el usuario: funciona)
-- [ ] **T15.** Prueba con tu biblioteca completa; lista de fallos y arreglos. Congelación
+- [x] **T15.** Prueba con tu biblioteca completa; lista de fallos y arreglos. Congelación (probado con la biblioteca completa: sin fallos. Pendiente investigar "Congelación"/Freeze — el usuario no tenía a mano un proyecto con pistas congeladas, queda anotado en IDEAS.md para cuando aparezca uno)
 
 ## Notas de la sesión de hoy
 
 - Repositorio de GitHub: **privado**.
 - Fixtures reales copiados desde `C:\Users\carlos\Desktop\PRUEBA ABLETON MANAGER` (se ignoraron las copias dentro de carpetas `Backup`, como pide el SPEC). El sistema de seguridad bloqueó subirlos a GitHub (archivos personales), así que **solo existen en este ordenador**: `tests/fixtures/*.als` está en `.gitignore`. Ver [tests/fixtures/README.md](../tests/fixtures/README.md).
-- T1-T12 completos y probados por el usuario en su Chrome real.
+- T1-T15 completos y probados por el usuario en su Chrome real, incluida la biblioteca completa.
 - Pendiente para después: muchos proyectos tienen cientos de samples huérfanos en `Samples/Recorded` (borrados del arreglo pero no del disco). Anotado en [IDEAS.md](../IDEAS.md).
