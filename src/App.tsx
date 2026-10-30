@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { db, ROOT_ID, type ProjectRecord } from './lib/db'
 import { parseAlsProject } from './lib/alsReader'
-import { resolverSegmentos } from './lib/resolvePath'
-import { buscarArchivosAls } from './lib/scanFolder'
+import { db, ROOT_ID, type ProjectRecord } from './lib/db'
+import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
+import { resolverClip } from './lib/resolvePath'
+import { recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
 
 type ProjectEntry = ProjectRecord
 
@@ -11,21 +12,18 @@ interface Progreso {
   total: number
 }
 
-async function resolverArchivo(
-  raiz: FileSystemDirectoryHandle,
-  segmentos: string[],
-): Promise<FileSystemFileHandle | null> {
-  if (segmentos.length === 0) return null
+const ETIQUETA_ESTADO: Record<EstadoPreescucha, string> = {
+  'con audio': 'Con audio',
+  'solo MIDI': 'Solo MIDI',
+  'audio no encontrado': 'Audio no encontrado',
+  'no legible': 'No legible',
+}
 
-  try {
-    let carpeta = raiz
-    for (const nombre of segmentos.slice(0, -1)) {
-      carpeta = await carpeta.getDirectoryHandle(nombre)
-    }
-    return await carpeta.getFileHandle(segmentos[segmentos.length - 1])
-  } catch {
-    return null
-  }
+const COLOR_ESTADO: Record<EstadoPreescucha, string> = {
+  'con audio': 'bg-green-100 text-green-700',
+  'solo MIDI': 'bg-gray-100 text-gray-600',
+  'audio no encontrado': 'bg-amber-100 text-amber-700',
+  'no legible': 'bg-red-100 text-red-700',
 }
 
 async function reproducir(handle: FileSystemFileHandle) {
@@ -40,6 +38,7 @@ function App() {
   const [raizHandle, setRaizHandle] = useState<FileSystemDirectoryHandle | null>(null)
   const [necesitaPermiso, setNecesitaPermiso] = useState(false)
   const [projects, setProjects] = useState<ProjectEntry[]>([])
+  const [audioIndex, setAudioIndex] = useState<AudioFileEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [progreso, setProgreso] = useState<Progreso | null>(null)
   const [notSupported, setNotSupported] = useState(false)
@@ -71,20 +70,39 @@ function App() {
 
     try {
       setRaizHandle(raiz)
-      const archivos = await buscarArchivosAls(raiz)
-      setProgreso({ leidos: 0, total: archivos.length })
+      const { alsFiles, audioFiles } = await recorrerCarpeta(raiz)
+      setAudioIndex(audioFiles)
+      setProgreso({ leidos: 0, total: alsFiles.length })
 
       const entries: ProjectEntry[] = []
-      for (const { handle, path } of archivos) {
+      for (const { handle, path } of alsFiles) {
+        const carpetaProyecto = path.split('/').slice(0, -1)
         let entry: ProjectEntry
+
         try {
           const file = await handle.getFile()
           const bytes = new Uint8Array(await file.arrayBuffer())
           const info = await parseAlsProject(bytes)
-          entry = { path, info }
+
+          let algunoEncontrado = false
+          for (const clip of info.audioClips) {
+            const encontrado = await resolverClip(raiz, carpetaProyecto, clip, audioFiles)
+            if (encontrado) {
+              algunoEncontrado = true
+              break
+            }
+          }
+
+          const estado = calcularEstado({
+            tieneError: false,
+            numeroDeClips: info.audioClips.length,
+            algunoEncontrado,
+          })
+          entry = { path, info, estado }
         } catch {
-          entry = { path, error: 'No se pudo leer este archivo' }
+          entry = { path, error: 'No se pudo leer este archivo', estado: 'no legible' }
         }
+
         entries.push(entry)
         setProjects((prev) => [...prev, entry])
         setProgreso((prev) => (prev ? { ...prev, leidos: prev.leidos + 1 } : prev))
@@ -123,8 +141,7 @@ function App() {
   }
 
   async function onPlayClick(project: ProjectEntry) {
-    const relativePath = project.info?.audioClips.find((clip) => clip.relativePath)?.relativePath
-    if (!relativePath || !raizHandle) return
+    if (!project.info || !raizHandle) return
 
     if (necesitaPermiso) {
       const permiso = await raizHandle.requestPermission({ mode: 'read' })
@@ -133,11 +150,13 @@ function App() {
     }
 
     const carpetaProyecto = project.path.split('/').slice(0, -1)
-    const segmentos = resolverSegmentos(carpetaProyecto, relativePath)
-    const audioHandle = await resolverArchivo(raizHandle, segmentos)
-    if (!audioHandle) return
-
-    await reproducir(audioHandle)
+    for (const clip of project.info.audioClips) {
+      const audioHandle = await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex)
+      if (audioHandle) {
+        await reproducir(audioHandle)
+        return
+      }
+    }
   }
 
   return (
@@ -199,8 +218,15 @@ function App() {
                   {project.info.bpm ?? '—'} · Pistas: {project.info.tracks.join(', ') || '—'}
                 </p>
               )}
+              {project.estado && (
+                <span
+                  className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs ${COLOR_ESTADO[project.estado]}`}
+                >
+                  {ETIQUETA_ESTADO[project.estado]}
+                </span>
+              )}
             </div>
-            {project.info?.audioClips.some((clip) => clip.relativePath) && (
+            {project.estado === 'con audio' && (
               <button
                 type="button"
                 onClick={() => onPlayClick(project)}

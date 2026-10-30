@@ -1,3 +1,6 @@
+import type { AudioClipInfo } from './alsReader'
+import { buscarEnIndice, type AudioFileEntry } from './scanFolder'
+
 /**
  * Combina la ruta (como lista de carpetas) de la carpeta de un proyecto con
  * una ruta relativa que puede incluir "..", y devuelve la ruta final también
@@ -11,4 +14,44 @@ export function resolverSegmentos(carpetaProyecto: string[], relativePath: strin
     else segmentos.push(parte)
   }
   return segmentos
+}
+
+/** Baja desde la carpeta raíz siguiendo una lista de nombres hasta llegar al archivo. */
+export async function resolverArchivo(
+  raiz: FileSystemDirectoryHandle,
+  segmentos: string[],
+): Promise<FileSystemFileHandle | null> {
+  if (segmentos.length === 0) return null
+
+  try {
+    let carpeta = raiz
+    for (const nombre of segmentos.slice(0, -1)) {
+      carpeta = await carpeta.getDirectoryHandle(nombre)
+    }
+    return await carpeta.getFileHandle(segmentos[segmentos.length - 1])
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Encuentra el archivo de un clip de audio: primero por su ruta relativa
+ * (siguiendo incluso ".." hacia otro proyecto), y si eso falla, buscando por
+ * nombre (y tamaño, cuando lo sabemos) en el índice de audios de la carpeta.
+ */
+export async function resolverClip(
+  raiz: FileSystemDirectoryHandle,
+  carpetaProyecto: string[],
+  clip: AudioClipInfo,
+  indiceAudios: AudioFileEntry[],
+): Promise<FileSystemFileHandle | null> {
+  if (!clip.relativePath) return null
+
+  const segmentos = resolverSegmentos(carpetaProyecto, clip.relativePath)
+  const porRuta = await resolverArchivo(raiz, segmentos)
+  if (porRuta) return porRuta
+
+  const nombreArchivo = segmentos[segmentos.length - 1]
+  const porIndice = buscarEnIndice(indiceAudios, nombreArchivo, clip.originalFileSize)
+  return porIndice?.handle ?? null
 }

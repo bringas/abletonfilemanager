@@ -10,10 +10,10 @@
 - [x] **T6.** Extraer clips de audio y rutas en formato Live 11-12 y Live 9-10, con tests
 - [~] **T7.** Escaneo de la carpeta completa con barra de progreso, ignorando `Backup` y archivos `._` (código listo y con tests; falta que el usuario lo pruebe en su Chrome real)
 - [~] **T8.** Guardar el catálogo en IndexedDB con Dexie: al recargar la página, sigue ahí (código listo, incluye "Reconectar carpeta"; falta probarlo en Chrome real porque necesita de verdad cerrar/recargar la pestaña)
-- [ ] **T9.** Índice de audios, búsqueda por nombre y tamaño, y estados de preescucha
+- [~] **T9.** Índice de audios, búsqueda por nombre y tamaño, y estados de preescucha (código listo y con tests; falta probar en Chrome real con tus proyectos, sobre todo que el estado "con audio" salga bien)
 
 ## Notas de la sesión de hoy
 
 - Repositorio de GitHub: **privado**.
 - Fixtures reales copiados desde `C:\Users\carlos\Desktop\PRUEBA ABLETON MANAGER` (se ignoraron las copias dentro de carpetas `Backup`, como pide el SPEC). El sistema de seguridad bloqueó subirlos a GitHub (archivos personales), así que **solo existen en este ordenador**: `tests/fixtures/*.als` está en `.gitignore`. Ver [tests/fixtures/README.md](../tests/fixtures/README.md).
-- T1-T5 completos y probados por el usuario. Mañana: T6.
+- T1-T6 completos y probados. T7-T9 tienen el código y los tests listos, pendientes de que el usuario los pruebe en su Chrome real con su carpeta de proyectos (hace falta probar: escaneo completo con progreso, recargar la página y reconectar, y que el estado de cada proyecto se vea bien).

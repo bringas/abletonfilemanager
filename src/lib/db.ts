@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { AlsProjectInfo } from './alsReader'
+import type { EstadoPreescucha } from './estadoPreescucha'
 
 export interface RootRecord {
   /** Solo soportamos una carpeta raíz a la vez (MVP), así que el id es fijo. */
@@ -13,6 +14,7 @@ export interface ProjectRecord {
   path: string
   info?: AlsProjectInfo
   error?: string
+  estado?: EstadoPreescucha
 }
 
 type ProjectRescueDB = Dexie & {
