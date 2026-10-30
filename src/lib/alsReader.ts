@@ -2,6 +2,12 @@ export interface AlsProjectInfo {
   liveVersion: string
   bpm: number | null
   tracks: string[]
+  /**
+   * Ruta (relativa a la carpeta del proyecto) del primer audio referenciado.
+   * Por ahora solo soporta el formato "fácil" de Live 11 y 12. En proyectos
+   * de Live 9 y 10 (formato viejo, sin RelativePath) queda en null; eso es T6.
+   */
+  firstAudioClipRelativePath: string | null
 }
 
 const TRACK_TAGS = ['AudioTrack', 'MidiTrack', 'GroupTrack', 'ReturnTrack']
@@ -22,6 +28,7 @@ export async function parseAlsProject(bytes: Uint8Array): Promise<AlsProjectInfo
     liveVersion: readLiveVersion(doc),
     bpm: readBpm(doc),
     tracks: readTrackNames(doc),
+    firstAudioClipRelativePath: readFirstAudioClipRelativePath(doc),
   }
 }
 
@@ -32,7 +39,9 @@ async function decompressToText(bytes: Uint8Array): Promise<string> {
       controller.close()
     },
   })
-  const decompressed = source.pipeThrough(new DecompressionStream('gzip'))
+  const decompressed = source.pipeThrough(
+    new DecompressionStream('gzip') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>,
+  )
 
   const chunks: Uint8Array[] = []
   for await (const chunk of decompressed as unknown as AsyncIterable<Uint8Array>) {
@@ -59,6 +68,12 @@ function readBpm(doc: Document): number | null {
   const manual = mainOrMaster?.querySelector('DeviceChain > Mixer > Tempo > Manual')
   const value = manual?.getAttribute('Value')
   return value ? Number.parseFloat(value) : null
+}
+
+function readFirstAudioClipRelativePath(doc: Document): string | null {
+  const clip = doc.querySelector('Tracks AudioClip')
+  const relativePath = clip?.querySelector('SampleRef > FileRef > RelativePath')?.getAttribute('Value')
+  return relativePath ?? null
 }
 
 function readTrackNames(doc: Document): string[] {

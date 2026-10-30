@@ -21,6 +21,7 @@ describe('parseAlsProject', () => {
     expect(info.liveVersion).toBe('Ableton Live 11.0.12')
     expect(info.bpm).toBe(120)
     expect(info.tracks).toEqual(['Voz principal', 'Bajo', 'Reverb'])
+    expect(info.firstAudioClipRelativePath).toBe('Samples/Recorded/Voz principal.wav')
   })
 
   it('lee un proyecto de Live 12 (MainTrack)', async () => {
@@ -30,6 +31,7 @@ describe('parseAlsProject', () => {
     expect(info.liveVersion).toBe('Ableton Live 12.0.5')
     expect(info.bpm).toBe(95.5)
     expect(info.tracks).toEqual(['Guitarra acústica', 'Batería'])
+    expect(info.firstAudioClipRelativePath).toBeNull()
   })
 
   it('lee un proyecto de Live 9', async () => {
