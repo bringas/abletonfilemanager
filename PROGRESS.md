@@ -30,7 +30,8 @@
 
 ## Rediseño visual (brutalista/post-punk, 3 columnas)
 
-- [~] Pantalla nueva de 3 columnas: árbol de carpetas + estadísticas (izquierda), lista de proyectos de la carpeta elegida (centro), ficha del proyecto seleccionado con pestañas PISTAS/INFO (derecha). Tema oscuro, tipografía monoespaciada, sin bordes redondeados ni degradados.
+- [~] Pantalla nueva de 3 columnas: árbol de carpetas + estadísticas (izquierda), lista de proyectos de la carpeta elegida (centro), ficha del proyecto seleccionado con pestañas PISTAS/INFO (derecha). Tipografía monoespaciada, sin bordes redondeados ni degradados.
+- [~] Cambiado a tema claro (fondo blanco roto, tipografía negra) según el segundo mockup del usuario; antes era tema oscuro. Misma estructura, solo cambió la paleta de colores.
 - El árbol de carpetas se calcula a partir de las rutas ya escaneadas (`src/lib/folderTree.ts`), no cambia cómo se escanea la carpeta.
 - Las formas de onda son decorativas (no es el audio real, ver IDEAS.md).
 - "OPEN IN ABLETON" del mockup no es posible desde una web (ninguna página puede abrir una app de escritorio); en su lugar hay un botón "Copiar ruta".

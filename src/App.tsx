@@ -40,13 +40,13 @@ const ETIQUETA_ESTADO: Record<EstadoPreescucha, string> = {
 }
 
 const COLOR_ESTADO: Record<EstadoPreescucha, string> = {
-  'con audio': 'text-[#7fcf8f]',
-  'solo MIDI': 'text-[#7a7a7a]',
-  'audio no encontrado': 'text-[#d8a94a]',
-  'no legible': 'text-[#d86a6a]',
+  'con audio': 'text-[#3f7a4c]',
+  'solo MIDI': 'text-[#8a867b]',
+  'audio no encontrado': 'text-[#9c6f1e]',
+  'no legible': 'text-[#b03f3f]',
 }
 
-const COLORES_PISTA = ['#e2574c', '#dcb23c', '#6cae5a', '#8f6fd8', '#d85fa0', '#49a79f', '#4a90d8', '#9a9a9a']
+const COLORES_PISTA = ['#b8453c', '#a9842a', '#4f8a43', '#6c4fb0', '#a8447c', '#35827b', '#3570ad', '#827e73']
 
 function tipoDePista(clips: AudioClipInfo[]): TipoDePista {
   if (clips.length === 0) return 'midi'
@@ -134,7 +134,7 @@ function NodoCarpeta({
     <div>
       <div
         className={`flex cursor-pointer items-center gap-1.5 py-1 pr-2 text-[13px] ${
-          seleccionada ? 'bg-[#1c1c1c] text-[#f2f2f2]' : 'text-[#9a9a9a] hover:bg-[#151515] hover:text-[#dcdcdc]'
+          seleccionada ? 'bg-[#e7e3d8] text-[#0a0a08]' : 'text-[#827e73] hover:bg-[#eeebe1] hover:text-[#15130f]'
         }`}
         style={{ paddingLeft: `${8 + nivel * 14}px` }}
         onClick={() => onSeleccionar(nodo.ruta)}
@@ -146,7 +146,7 @@ function NodoCarpeta({
               e.stopPropagation()
               onToggleExpandir(clave)
             }}
-            className="w-3 shrink-0 text-[#6a6a6a]"
+            className="w-3 shrink-0 text-[#716d63]"
           >
             {expandido ? '▾' : '▸'}
           </button>
@@ -154,7 +154,7 @@ function NodoCarpeta({
           <span className="w-3 shrink-0" />
         )}
         <span className="truncate">{nodo.nombre}</span>
-        <span className="ml-auto shrink-0 text-[11px] text-[#5e5e5e]">{nodo.numeroDeProyectos}</span>
+        <span className="ml-auto shrink-0 text-[11px] text-[#9c988d]">{nodo.numeroDeProyectos}</span>
       </div>
       {expandido &&
         nodo.hijos.map((hijo) => (
@@ -495,9 +495,9 @@ function App() {
 
   if (!raizHandle && projects.length === 0) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#0d0d0d] p-8 font-mono text-[#e8e8e8]">
-        <h1 className="text-xl tracking-wide">PROJECTRESCUE</h1>
-        <p className="max-w-sm text-center text-sm text-[#8a8a8a]">
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#f5f4f0] p-8 font-mono text-[#15130f]">
+        <h1 className="text-xl font-bold tracking-wide">PROJECTRESCUE</h1>
+        <p className="max-w-sm text-center text-sm text-[#58544b]">
           Tus archivos no salen de este ordenador. Elige la carpeta donde tienes tus proyectos de Ableton para
           empezar.
         </p>
@@ -505,17 +505,17 @@ function App() {
           type="button"
           onClick={elegirCarpeta}
           disabled={loading}
-          className="border border-[#e8e8e8] px-5 py-2 text-sm text-[#e8e8e8] hover:bg-[#e8e8e8] hover:text-[#0d0d0d] disabled:opacity-50"
+          className="border border-[#15130f] px-5 py-2 text-sm text-[#15130f] hover:bg-[#15130f] hover:text-[#f5f4f0] disabled:opacity-50"
         >
           {loading ? 'Escaneando…' : 'Elegir carpeta de proyectos'}
         </button>
         {progreso && progreso.total > 0 && (
-          <p className="text-xs text-[#6a6a6a]">
+          <p className="text-xs text-[#716d63]">
             {progreso.leidos} de {progreso.total} proyectos
           </p>
         )}
         {notSupported && (
-          <p className="max-w-sm text-center text-sm text-[#d86a6a]">
+          <p className="max-w-sm text-center text-sm text-[#b03f3f]">
             Tu navegador no soporta elegir carpetas así. Prueba con Chrome o Edge de escritorio.
           </p>
         )}
@@ -524,50 +524,50 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#0d0d0d] font-mono text-[#e8e8e8]">
+    <div className="flex h-screen flex-col bg-[#f5f4f0] font-mono text-[#15130f]">
       {(necesitaPermiso || (progreso && progreso.total > 0) || notSupported) && (
-        <div className="shrink-0 border-b border-[#232323] bg-[#111] px-4 py-2 text-xs">
+        <div className="shrink-0 border-b border-[#ddd9cf] bg-[#efeeea] px-4 py-2 text-xs">
           {necesitaPermiso && (
-            <div className="flex items-center gap-3 text-[#d8a94a]">
+            <div className="flex items-center gap-3 text-[#9c6f1e]">
               <span>Hace falta volver a dar permiso para leer la carpeta.</span>
-              <button type="button" onClick={reconectarCarpeta} className="underline hover:text-[#e8e8e8]">
+              <button type="button" onClick={reconectarCarpeta} className="underline hover:text-[#15130f]">
                 Reconectar carpeta
               </button>
             </div>
           )}
           {progreso && progreso.total > 0 && (
             <div className="mt-1 flex items-center gap-2">
-              <span className="text-[#8a8a8a]">
+              <span className="text-[#58544b]">
                 Escaneando: {progreso.leidos} de {progreso.total}
               </span>
-              <div className="h-1 w-40 overflow-hidden bg-[#232323]">
+              <div className="h-1 w-40 overflow-hidden bg-[#ddd9cf]">
                 <div
-                  className="h-full bg-[#e8e8e8]"
+                  className="h-full bg-[#15130f]"
                   style={{ width: `${(progreso.leidos / progreso.total) * 100}%` }}
                 />
               </div>
             </div>
           )}
           {notSupported && (
-            <p className="text-[#d86a6a]">Tu navegador no soporta elegir carpetas así. Prueba con Chrome o Edge.</p>
+            <p className="text-[#b03f3f]">Tu navegador no soporta elegir carpetas así. Prueba con Chrome o Edge.</p>
           )}
         </div>
       )}
 
       <div className="flex flex-1 overflow-hidden text-[13px]">
         {/* Columna izquierda: carpetas, búsqueda y estadísticas */}
-        <aside className="flex w-64 shrink-0 flex-col overflow-hidden border-r border-[#232323] bg-[#0f0f0f]">
-          <div className="shrink-0 border-b border-[#232323] p-4">
-            <h1 className="text-sm font-semibold tracking-[0.15em]">PROJECTRESCUE</h1>
-            <p className="mt-0.5 text-[10px] tracking-wide text-[#6a6a6a]">TUS ARCHIVOS NO SALEN DE AQUÍ</p>
+        <aside className="flex w-64 shrink-0 flex-col overflow-hidden border-r border-[#ddd9cf] bg-[#efeeea]">
+          <div className="shrink-0 border-b border-[#ddd9cf] p-4">
+            <h1 className="text-sm font-bold tracking-[0.15em]">PROJECTRESCUE</h1>
+            <p className="mt-0.5 text-[10px] tracking-wide text-[#716d63]">TUS ARCHIVOS NO SALEN DE AQUÍ</p>
           </div>
 
-          <div className="shrink-0 space-y-1.5 border-b border-[#232323] p-3">
+          <div className="shrink-0 space-y-1.5 border-b border-[#ddd9cf] p-3">
             <button
               type="button"
               onClick={elegirCarpeta}
               disabled={loading}
-              className="w-full border border-[#2e2e2e] px-2 py-1.5 text-left text-[12px] text-[#c8c8c8] hover:border-[#4a4a4a] disabled:opacity-50"
+              className="w-full border border-[#c9c5ba] px-2 py-1.5 text-left text-[12px] text-[#38352c] hover:border-[#a39e92] disabled:opacity-50"
             >
               {loading ? 'Escaneando…' : 'Cambiar carpeta…'}
             </button>
@@ -575,29 +575,29 @@ function App() {
               type="button"
               onClick={buscarCambios}
               disabled={loading}
-              className="w-full border border-[#2e2e2e] px-2 py-1.5 text-left text-[12px] text-[#c8c8c8] hover:border-[#4a4a4a] disabled:opacity-50"
+              className="w-full border border-[#c9c5ba] px-2 py-1.5 text-left text-[12px] text-[#38352c] hover:border-[#a39e92] disabled:opacity-50"
             >
               Buscar cambios
             </button>
           </div>
 
-          <div className="shrink-0 border-b border-[#232323] p-3">
+          <div className="shrink-0 border-b border-[#ddd9cf] p-3">
             <input
               type="search"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar proyectos…"
-              className="w-full border border-[#2e2e2e] bg-transparent px-2 py-1.5 text-[12px] text-[#e8e8e8] placeholder:text-[#5e5e5e] focus:border-[#6a6a6a] focus:outline-none"
+              className="w-full border border-[#c9c5ba] bg-transparent px-2 py-1.5 text-[12px] text-[#15130f] placeholder:text-[#9c988d] focus:border-[#716d63] focus:outline-none"
             />
           </div>
 
-          <div className="shrink-0 px-3 pt-3 text-[10px] tracking-[0.1em] text-[#5e5e5e]">CARPETAS</div>
+          <div className="shrink-0 px-3 pt-3 text-[10px] tracking-[0.1em] text-[#9c988d]">CARPETAS</div>
           <div className="flex-1 overflow-y-auto px-1 py-1.5">
             <div
               className={`flex cursor-pointer items-center gap-1.5 py-1 pr-2 pl-2 text-[13px] ${
                 claveDeCarpeta(carpetaSeleccionada) === '' && busqueda.trim() === ''
-                  ? 'bg-[#1c1c1c] text-[#f2f2f2]'
-                  : 'text-[#9a9a9a] hover:bg-[#151515] hover:text-[#dcdcdc]'
+                  ? 'bg-[#e7e3d8] text-[#0a0a08]'
+                  : 'text-[#827e73] hover:bg-[#eeebe1] hover:text-[#15130f]'
               }`}
               onClick={() => {
                 setCarpetaSeleccionada([])
@@ -605,7 +605,7 @@ function App() {
               }}
             >
               <span className="truncate">{raizHandle?.name ?? 'Carpeta'}</span>
-              <span className="ml-auto text-[11px] text-[#5e5e5e]">{arbolDeCarpetas.numeroDeProyectos}</span>
+              <span className="ml-auto text-[11px] text-[#9c988d]">{arbolDeCarpetas.numeroDeProyectos}</span>
             </div>
             {arbolDeCarpetas.hijos.map((hijo) => (
               <NodoCarpeta
@@ -623,8 +623,8 @@ function App() {
             ))}
           </div>
 
-          <div className="shrink-0 border-t border-[#232323] p-3">
-            <label className="flex items-center gap-2 text-[11px] text-[#8a8a8a]">
+          <div className="shrink-0 border-t border-[#ddd9cf] p-3">
+            <label className="flex items-center gap-2 text-[11px] text-[#58544b]">
               <input
                 type="checkbox"
                 checked={ignorarRepetidos}
@@ -634,35 +634,35 @@ function App() {
             </label>
           </div>
 
-          <div className="shrink-0 border-t border-[#232323] p-3 text-[11px]">
-            <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#5e5e5e]">ESTADÍSTICAS</div>
-            <div className="flex justify-between text-[#8a8a8a]">
+          <div className="shrink-0 border-t border-[#ddd9cf] p-3 text-[11px]">
+            <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">ESTADÍSTICAS</div>
+            <div className="flex justify-between text-[#58544b]">
               <span>Proyectos</span>
-              <span className="text-[#c8c8c8]">{projects.length}</span>
+              <span className="text-[#38352c]">{projects.length}</span>
             </div>
-            <div className="flex justify-between text-[#8a8a8a]">
+            <div className="flex justify-between text-[#58544b]">
               <span>Tamaño total</span>
-              <span className="text-[#c8c8c8]">{formatoTamano(tamanoTotalBiblioteca)}</span>
+              <span className="text-[#38352c]">{formatoTamano(tamanoTotalBiblioteca)}</span>
             </div>
-            <div className="flex justify-between text-[#8a8a8a]">
+            <div className="flex justify-between text-[#58544b]">
               <span>Último escaneo</span>
-              <span className="text-[#c8c8c8]">{formatoFecha(ultimoEscaneo)}</span>
+              <span className="text-[#38352c]">{formatoFecha(ultimoEscaneo)}</span>
             </div>
           </div>
         </aside>
 
         {/* Columna del medio: lista de proyectos */}
-        <main className="flex w-[22rem] shrink-0 flex-col overflow-hidden border-r border-[#232323]">
-          <div className="shrink-0 border-b border-[#232323] px-4 py-3">
-            <p className="text-[10px] text-[#5e5e5e]">
+        <main className="flex w-[22rem] shrink-0 flex-col overflow-hidden border-r border-[#ddd9cf]">
+          <div className="shrink-0 border-b border-[#ddd9cf] px-4 py-3">
+            <p className="text-[10px] text-[#9c988d]">
               {busqueda.trim()
                 ? `Resultados de "${busqueda}"`
                 : [raizHandle?.name, ...carpetaSeleccionada].filter(Boolean).join(' / ')}
             </p>
-            <p className="mt-0.5 text-sm text-[#e8e8e8]">{proyectosVisibles.length} proyectos</p>
+            <p className="mt-0.5 text-sm text-[#15130f]">{proyectosVisibles.length} proyectos</p>
           </div>
 
-          <ul className="flex-1 divide-y divide-[#1c1c1c] overflow-y-auto">
+          <ul className="flex-1 divide-y divide-[#e2ded3] overflow-y-auto">
             {proyectosVisibles.map((project) => {
               const activo = proyectoSeleccionado === project.path
               const nombre = metaPorPath[project.path]?.alias || project.path.split('/').pop()?.replace(/\.als$/i, '')
@@ -670,7 +670,7 @@ function App() {
                 <li
                   key={project.path}
                   onClick={() => seleccionarProyecto(project)}
-                  className={`cursor-pointer px-4 py-2.5 ${activo ? 'bg-[#161616]' : 'hover:bg-[#121212]'}`}
+                  className={`cursor-pointer px-4 py-2.5 ${activo ? 'bg-[#ece8dd]' : 'hover:bg-[#efece3]'}`}
                 >
                   <div className="flex items-center gap-1.5">
                     <button
@@ -684,9 +684,9 @@ function App() {
                     >
                       {metaPorPath[project.path]?.favorito ? '★' : '☆'}
                     </button>
-                    <p className="truncate text-sm text-[#e8e8e8]">{nombre}</p>
+                    <p className="truncate text-sm text-[#15130f]">{nombre}</p>
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-[11px] text-[#6a6a6a]">
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-[#716d63]">
                     <span>{project.info?.bpm != null ? `${project.info.bpm} BPM` : '—'}</span>
                     <span>·</span>
                     <span>{formatoFecha(project.lastModified)}</span>
@@ -700,7 +700,7 @@ function App() {
               )
             })}
             {proyectosVisibles.length === 0 && (
-              <li className="px-4 py-6 text-center text-sm text-[#5e5e5e]">Nada por aquí.</li>
+              <li className="px-4 py-6 text-center text-sm text-[#9c988d]">Nada por aquí.</li>
             )}
           </ul>
         </main>
@@ -708,18 +708,18 @@ function App() {
         {/* Columna derecha: detalle del proyecto seleccionado */}
         <section className="flex flex-1 flex-col overflow-hidden">
           {!proyectoActivo ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-[#5e5e5e]">
+            <div className="flex flex-1 items-center justify-center text-sm text-[#9c988d]">
               Selecciona un proyecto para ver su detalle.
             </div>
           ) : (
             <>
-              <div className="shrink-0 border-b border-[#232323] p-4">
+              <div className="shrink-0 border-b border-[#ddd9cf] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] text-[#5e5e5e]">
+                    <p className="text-[10px] text-[#9c988d]">
                       {[raizHandle?.name, ...proyectoActivo.path.split('/').slice(0, -1)].filter(Boolean).join(' / ')}
                     </p>
-                    <h2 className="truncate text-lg text-[#f2f2f2]">
+                    <h2 className="truncate text-lg font-bold text-[#0a0a08]">
                       {metaPorPath[proyectoActivo.path]?.alias ||
                         proyectoActivo.path
                           .split('/')
@@ -737,7 +737,7 @@ function App() {
                   </button>
                 </div>
 
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#8a8a8a]">
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#58544b]">
                   <span>{proyectoActivo.info?.liveVersion || 'Versión desconocida'}</span>
                   <span>·</span>
                   <span>{proyectoActivo.info?.bpm != null ? `${proyectoActivo.info.bpm} BPM` : '— BPM'}</span>
@@ -753,7 +753,7 @@ function App() {
                   )}
                 </div>
 
-                {proyectoActivo.error && <p className="mt-2 text-sm text-[#d86a6a]">{proyectoActivo.error}</p>}
+                {proyectoActivo.error && <p className="mt-2 text-sm text-[#b03f3f]">{proyectoActivo.error}</p>}
 
                 <div className="mt-3 flex items-center gap-2">
                   {proyectoActivo.estado === 'con audio' &&
@@ -761,7 +761,7 @@ function App() {
                       <button
                         type="button"
                         onClick={pararReproduccion}
-                        className="border border-[#d86a6a] px-3 py-1 text-[12px] text-[#d86a6a] hover:bg-[#d86a6a]/10"
+                        className="border border-[#b03f3f] px-3 py-1 text-[12px] text-[#b03f3f] hover:bg-[#b03f3f]/10"
                       >
                         ■ Parar
                       </button>
@@ -769,7 +769,7 @@ function App() {
                       <button
                         type="button"
                         onClick={() => onPlayClick(proyectoActivo)}
-                        className="border border-[#e8e8e8] px-3 py-1 text-[12px] text-[#e8e8e8] hover:bg-[#e8e8e8] hover:text-[#0d0d0d]"
+                        className="border border-[#15130f] px-3 py-1 text-[12px] text-[#15130f] hover:bg-[#15130f] hover:text-[#f5f4f0]"
                       >
                         ▶ Reproducir
                       </button>
@@ -777,30 +777,30 @@ function App() {
                   <button
                     type="button"
                     onClick={() => copiarRuta(proyectoActivo)}
-                    className="border border-[#2e2e2e] px-3 py-1 text-[12px] text-[#c8c8c8] hover:border-[#4a4a4a]"
+                    className="border border-[#c9c5ba] px-3 py-1 text-[12px] text-[#38352c] hover:border-[#a39e92]"
                   >
                     {rutaCopiada === proyectoActivo.path ? 'Ruta copiada' : 'Copiar ruta'}
                   </button>
                 </div>
 
                 {reproduciendoPath === proyectoActivo.path && (
-                  <div className="mt-2 h-1 w-full max-w-xs overflow-hidden bg-[#232323]">
-                    <div className="h-full bg-[#e8e8e8]" style={{ width: `${progresoReproduccion * 100}%` }} />
+                  <div className="mt-2 h-1 w-full max-w-xs overflow-hidden bg-[#ddd9cf]">
+                    <div className="h-full bg-[#15130f]" style={{ width: `${progresoReproduccion * 100}%` }} />
                   </div>
                 )}
 
-                <div className="mt-3 flex gap-4 text-[11px] tracking-[0.1em] text-[#6a6a6a]">
+                <div className="mt-3 flex gap-4 text-[11px] tracking-[0.1em] text-[#716d63]">
                   <button
                     type="button"
                     onClick={() => setPestanaActiva('pistas')}
-                    className={pestanaActiva === 'pistas' ? 'border-b border-[#e8e8e8] pb-1 text-[#e8e8e8]' : 'pb-1'}
+                    className={pestanaActiva === 'pistas' ? 'border-b border-[#15130f] pb-1 text-[#15130f]' : 'pb-1'}
                   >
                     PISTAS
                   </button>
                   <button
                     type="button"
                     onClick={() => setPestanaActiva('info')}
-                    className={pestanaActiva === 'info' ? 'border-b border-[#e8e8e8] pb-1 text-[#e8e8e8]' : 'pb-1'}
+                    className={pestanaActiva === 'info' ? 'border-b border-[#15130f] pb-1 text-[#15130f]' : 'pb-1'}
                   >
                     INFO
                   </button>
@@ -811,17 +811,17 @@ function App() {
                 {pestanaActiva === 'info' ? (
                   <div className="max-w-sm space-y-3 text-[12px]">
                     <div>
-                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#5e5e5e]">ALIAS</label>
+                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#9c988d]">ALIAS</label>
                       <input
                         type="text"
                         defaultValue={metaPorPath[proyectoActivo.path]?.alias ?? ''}
                         onBlur={(e) => guardarMeta(proyectoActivo.path, { alias: e.target.value })}
                         placeholder="Ponle un alias…"
-                        className="w-full border border-[#2e2e2e] bg-transparent px-2 py-1.5 text-[#e8e8e8] focus:border-[#6a6a6a] focus:outline-none"
+                        className="w-full border border-[#c9c5ba] bg-transparent px-2 py-1.5 text-[#15130f] focus:border-[#716d63] focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#5e5e5e]">ETIQUETAS</label>
+                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#9c988d]">ETIQUETAS</label>
                       <input
                         type="text"
                         defaultValue={(metaPorPath[proyectoActivo.path]?.etiquetas ?? []).join(', ')}
@@ -834,19 +834,19 @@ function App() {
                           })
                         }
                         placeholder="Etiquetas separadas por comas…"
-                        className="w-full border border-[#2e2e2e] bg-transparent px-2 py-1.5 text-[#e8e8e8] focus:border-[#6a6a6a] focus:outline-none"
+                        className="w-full border border-[#c9c5ba] bg-transparent px-2 py-1.5 text-[#15130f] focus:border-[#716d63] focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#5e5e5e]">RUTA COMPLETA</label>
-                      <p className="break-all text-[#8a8a8a]">
+                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#9c988d]">RUTA COMPLETA</label>
+                      <p className="break-all text-[#58544b]">
                         {raizHandle?.name}/{proyectoActivo.path}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[#8a8a8a]">
+                    <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[#58544b]">
                       <label className="flex items-center gap-1.5">
                         <input
                           type="checkbox"
@@ -887,20 +887,20 @@ function App() {
                       const tieneClips = (todosDeLaPista?.length ?? 0) > 0
 
                       return (
-                        <div key={`${trackName}-${i}`} className="border-b border-[#1c1c1c]">
+                        <div key={`${trackName}-${i}`} className="border-b border-[#e2ded3]">
                           <button
                             type="button"
                             onClick={() => tieneClips && togglePista(proyectoActivo.path, trackName)}
                             className="flex w-full items-center gap-2 py-2 text-left"
                           >
-                            <span className="w-2.5 shrink-0 text-[10px] text-[#5e5e5e]">
+                            <span className="w-2.5 shrink-0 text-[10px] text-[#9c988d]">
                               {tieneClips ? (expandida ? '▾' : '▸') : ''}
                             </span>
                             <span className="shrink-0" style={{ color }}>
                               <IconoPista tipo={tipo} color={color} />
                             </span>
-                            <span className="truncate text-[13px] text-[#e8e8e8]">{trackName}</span>
-                            <span className="ml-auto shrink-0 text-[11px] text-[#5e5e5e]">
+                            <span className="truncate text-[13px] text-[#15130f]">{trackName}</span>
+                            <span className="ml-auto shrink-0 text-[11px] text-[#9c988d]">
                               {tieneClips ? `${todosDeLaPista?.length} clip${todosDeLaPista?.length === 1 ? '' : 's'}` : 'MIDI'}
                             </span>
                           </button>
@@ -908,7 +908,7 @@ function App() {
                           {expandida && tieneClips && (
                             <div className="pb-2 pl-5">
                               {clipsDeLaPista && clipsDeLaPista.length === 0 ? (
-                                <p className="py-1 text-[11px] text-[#5e5e5e]">
+                                <p className="py-1 text-[11px] text-[#9c988d]">
                                   {noEncontrados > 0
                                     ? `Ninguna grabación encontrada (${noEncontrados} oculta${noEncontrados === 1 ? '' : 's'})`
                                     : archivadasOcultas > 0
@@ -926,7 +926,7 @@ function App() {
                                         <button
                                           type="button"
                                           onClick={() => onPlayClipClick(proyectoActivo, handle)}
-                                          className="flex h-5 w-5 shrink-0 items-center justify-center border border-[#3a3a3a] text-[10px] text-[#c8c8c8] hover:border-[#e8e8e8] hover:text-[#e8e8e8]"
+                                          className="flex h-5 w-5 shrink-0 items-center justify-center border border-[#c4c0b5] text-[10px] text-[#38352c] hover:border-[#15130f] hover:text-[#15130f]"
                                         >
                                           ▶
                                         </button>
@@ -934,33 +934,33 @@ function App() {
                                         <span className="h-5 w-5 shrink-0" />
                                       )}
                                       <BarrasDecorativas semilla={clip.relativePath ?? String(idx)} color={color} />
-                                      <span className="w-40 shrink-0 truncate text-[12px] text-[#c8c8c8]">
+                                      <span className="w-40 shrink-0 truncate text-[12px] text-[#38352c]">
                                         {nombreArchivo}
                                       </span>
-                                      <span className="w-12 shrink-0 text-right text-[11px] text-[#6a6a6a]">
+                                      <span className="w-12 shrink-0 text-right text-[11px] text-[#716d63]">
                                         {formatoDuracion(clip.durationBeats, proyectoActivo.info?.bpm ?? null)}
                                       </span>
-                                      <span className="w-16 shrink-0 text-right text-[11px] text-[#6a6a6a]">
+                                      <span className="w-16 shrink-0 text-right text-[11px] text-[#716d63]">
                                         {formatoTamano(clip.originalFileSize)}
                                       </span>
-                                      <span className="w-24 shrink-0 text-right text-[11px] text-[#5e5e5e]">
+                                      <span className="w-24 shrink-0 text-right text-[11px] text-[#9c988d]">
                                         {!resueltos ? 'comprobando…' : handle ? 'encontrado' : 'no encontrado'}
                                       </span>
                                       {veces >= 2 && (
-                                        <span className="shrink-0 text-[10px] text-[#5e5e5e]">en {veces} proyectos</span>
+                                        <span className="shrink-0 text-[10px] text-[#9c988d]">en {veces} proyectos</span>
                                       )}
                                     </div>
                                   )
                                 })
                               )}
                               {!mostrarNoEncontrados && noEncontrados > 0 && clipsDeLaPista && clipsDeLaPista.length > 0 && (
-                                <p className="pt-0.5 text-[10px] text-[#5e5e5e]">
+                                <p className="pt-0.5 text-[10px] text-[#9c988d]">
                                   + {noEncontrados} no encontrada{noEncontrados === 1 ? '' : 's'} (oculta
                                   {noEncontrados === 1 ? '' : 's'})
                                 </p>
                               )}
                               {!mostrarOtrosArchivos && archivadasOcultas > 0 && clipsDeLaPista && clipsDeLaPista.length > 0 && (
-                                <p className="pt-0.5 text-[10px] text-[#5e5e5e]">
+                                <p className="pt-0.5 text-[10px] text-[#9c988d]">
                                   + {archivadasOcultas} toma{archivadasOcultas === 1 ? '' : 's'} archivada
                                   {archivadasOcultas === 1 ? '' : 's'} (oculta{archivadasOcultas === 1 ? '' : 's'})
                                 </p>
