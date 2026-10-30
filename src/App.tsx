@@ -58,6 +58,7 @@ function App() {
   const [busqueda, setBusqueda] = useState('')
   const [fichaAbierta, setFichaAbierta] = useState<string | null>(null)
   const [fichaClips, setFichaClips] = useState<Record<string, Array<FileSystemFileHandle | null>>>({})
+  const [mostrarNoEncontrados, setMostrarNoEncontrados] = useState(false)
   const [metaPorPath, setMetaPorPath] = useState<Record<string, UserMetaRecord>>({})
   const [repeticiones, setRepeticiones] = useState<Map<string, number>>(new Map())
   const [ignorarRepetidos, setIgnorarRepetidos] = useState(false)
@@ -477,19 +478,39 @@ function App() {
 
               {fichaAbierta === project.path && (
                 <div className="mt-2 rounded-md bg-gray-50 p-3 text-sm">
+                  <label className="mb-2 flex items-center gap-2 text-xs text-gray-500">
+                    <input
+                      type="checkbox"
+                      checked={mostrarNoEncontrados}
+                      onChange={(e) => setMostrarNoEncontrados(e.target.checked)}
+                    />
+                    Mostrar también los audios no encontrados
+                  </label>
                   {project.info.tracks.map((trackName, i) => {
-                    const clipsDeLaPista = project.info?.audioClips
+                    const resueltos = fichaClips[project.path]
+                    const todosDeLaPista = project.info?.audioClips
                       .map((clip, idx) => ({ clip, idx }))
                       .filter(({ clip }) => clip.track === trackName)
+                    const noEncontrados = resueltos
+                      ? (todosDeLaPista ?? []).filter(({ idx }) => resueltos[idx] === null).length
+                      : 0
+                    const clipsDeLaPista = mostrarNoEncontrados
+                      ? todosDeLaPista
+                      : (todosDeLaPista ?? []).filter(({ idx }) => !resueltos || resueltos[idx] !== null)
                     return (
                       <div key={`${trackName}-${i}`} className="mb-2 last:mb-0">
                         <p className="font-medium">{trackName}</p>
-                        {!clipsDeLaPista || clipsDeLaPista.length === 0 ? (
+                        {!todosDeLaPista || todosDeLaPista.length === 0 ? (
                           <p className="text-gray-500">Solo MIDI</p>
+                        ) : clipsDeLaPista && clipsDeLaPista.length === 0 ? (
+                          <p className="text-gray-400">
+                            {noEncontrados > 0
+                              ? `Ninguna grabación encontrada (${noEncontrados} oculta${noEncontrados === 1 ? '' : 's'})`
+                              : 'comprobando…'}
+                          </p>
                         ) : (
                           <ul className="ml-3 list-disc text-gray-600">
-                            {clipsDeLaPista.map(({ clip, idx }) => {
-                              const resueltos = fichaClips[project.path]
+                            {clipsDeLaPista?.map(({ clip, idx }) => {
                               const handle = resueltos?.[idx]
                               const veces = vecesRepetido(clip, repeticiones)
                               return (
@@ -514,6 +535,11 @@ function App() {
                               )
                             })}
                           </ul>
+                        )}
+                        {!mostrarNoEncontrados && noEncontrados > 0 && clipsDeLaPista && clipsDeLaPista.length > 0 && (
+                          <p className="text-xs text-gray-400">
+                            + {noEncontrados} no encontrada{noEncontrados === 1 ? '' : 's'} (ocultas)
+                          </p>
                         )}
                       </div>
                     )

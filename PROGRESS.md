@@ -25,6 +25,7 @@
 3. [x] Detectar master/bounce (export suelto en la carpeta, no referenciado en el `.als`, con palabras clave ampliadas) — confirmado por el usuario
 4. [x] Samples repetidos entre proyectos: contador por archivo + interruptor "ignorar grabaciones que se repiten en 3+ proyectos" al elegir qué suena, con el conteo visible en la ficha — confirmado por el usuario
 5. [~] **Ruido dentro de una misma pista** (código y tests listos; falta probar en Chrome real): algunas pistas tienen cientos o miles de tomas cortas grabadas. Ahora, si una pista tiene más de 5 clips, nos quedamos solo con el más reciente (por fecha del archivo) y el más largo — tanto en la ficha como al elegir qué suena. El umbral (5) es un valor por defecto, se puede ajustar
+6. [~] Ocultar por defecto en la ficha los audios "no encontrados" (con una casilla para mostrarlos si hace falta) — falta probar en Chrome real
 
 ## Notas de la sesión de hoy
 
