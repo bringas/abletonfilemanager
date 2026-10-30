@@ -26,6 +26,7 @@
 4. [x] Samples repetidos entre proyectos: contador por archivo + interruptor "ignorar grabaciones que se repiten en 3+ proyectos" al elegir qué suena, con el conteo visible en la ficha — confirmado por el usuario
 5. [~] **Ruido dentro de una misma pista** (código y tests listos; falta probar en Chrome real): algunas pistas tienen cientos o miles de tomas cortas grabadas. Ahora, si una pista tiene más de 5 clips, nos quedamos solo con el más reciente (por fecha del archivo) y el más largo — tanto en la ficha como al elegir qué suena. El umbral (5) es un valor por defecto, se puede ajustar
 6. [~] Ocultar por defecto en la ficha los audios "no encontrados" (con una casilla para mostrarlos si hace falta) — falta probar en Chrome real
+7. [~] En la ficha, por defecto solo se muestran las pistas reales del proyecto; los archivos de exportación/bounce sueltos (no asociados a ninguna pista) quedan ocultos detrás de una casilla "Mostrar otros archivos de audio". Si ninguna pista tiene grabaciones pero hay un archivo suelto, se avisa en vez de mostrarlo automáticamente — falta probar en Chrome real
 
 ## Notas de la sesión de hoy
 
