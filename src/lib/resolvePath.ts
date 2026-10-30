@@ -37,7 +37,8 @@ export async function resolverArchivo(
 /**
  * Encuentra el archivo de un clip de audio: primero por su ruta relativa
  * (siguiendo incluso ".." hacia otro proyecto), y si eso falla, buscando por
- * nombre (y tamaño, cuando lo sabemos) en el índice de audios de la carpeta.
+ * nombre (y tamaño, cuando lo sabemos) en el índice de audios — pero **solo
+ * dentro de la propia carpeta del proyecto** (ver `audiosDelProyecto`).
  */
 export async function resolverClip(
   raiz: FileSystemDirectoryHandle,
@@ -52,6 +53,18 @@ export async function resolverClip(
   if (porRuta) return porRuta
 
   const nombreArchivo = segmentos[segmentos.length - 1]
-  const porIndice = buscarEnIndice(indiceAudios, nombreArchivo, clip.originalFileSize)
+  const porIndice = buscarEnIndice(audiosDelProyecto(indiceAudios, carpetaProyecto), nombreArchivo, clip.originalFileSize)
   return porIndice?.handle ?? null
+}
+
+/**
+ * Filtra el índice de audios a solo los que están dentro de la carpeta del
+ * proyecto (o sus subcarpetas). Sin esto, un nombre de archivo genérico y
+ * repetido (p. ej. "1-Audio.wav", típico si no renombras las pistas) podría
+ * encontrar por error el archivo de OTRO proyecto con el mismo nombre.
+ */
+function audiosDelProyecto(indiceAudios: AudioFileEntry[], carpetaProyecto: string[]): AudioFileEntry[] {
+  if (carpetaProyecto.length === 0) return indiceAudios
+  const prefijo = `${carpetaProyecto.join('/')}/`
+  return indiceAudios.filter((archivo) => archivo.path.startsWith(prefijo))
 }

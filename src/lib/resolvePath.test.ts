@@ -47,7 +47,7 @@ describe('resolverClip', () => {
     expect(resultado).toBeNull()
   })
 
-  it('si la ruta relativa no existe, cae al índice de audios por nombre y tamaño', async () => {
+  it('si la ruta relativa no existe, cae al índice de audios de la propia carpeta por nombre y tamaño', async () => {
     const clip: AudioClipInfo = {
       track: 'Voz',
       relativePath: 'Samples/Recorded/audio.wav',
@@ -56,11 +56,34 @@ describe('resolverClip', () => {
     }
     const handleEsperado = {} as FileSystemFileHandle
     const indice: AudioFileEntry[] = [
-      { handle: handleEsperado, path: 'Samples/Recorded/audio.wav', name: 'audio.wav', size: 999 },
+      { handle: handleEsperado, path: 'proyecto/Samples/Recorded/audio.wav', name: 'audio.wav', size: 999 },
     ]
 
     const resultado = await resolverClip(raizQueNuncaEncuentraNada(), ['proyecto'], clip, indice)
     expect(resultado).toBe(handleEsperado)
+  })
+
+  it('no usa un archivo con el mismo nombre si está en la carpeta de OTRO proyecto', async () => {
+    // Esto pasaba antes: un nombre genérico (ej. "1-Audio.wav") de un
+    // proyecto distinto se daba por bueno al faltar el tamaño (Live 9/10).
+    const clip: AudioClipInfo = {
+      track: 'Voz',
+      relativePath: 'Samples/Recorded/1-Audio.wav',
+      originalFileSize: null,
+      durationBeats: 16,
+    }
+    const archivoDeOtroProyecto = {} as FileSystemFileHandle
+    const indice: AudioFileEntry[] = [
+      {
+        handle: archivoDeOtroProyecto,
+        path: 'otro proyecto/Samples/Recorded/1-Audio.wav',
+        name: '1-Audio.wav',
+        size: 500,
+      },
+    ]
+
+    const resultado = await resolverClip(raizQueNuncaEncuentraNada(), ['proyecto'], clip, indice)
+    expect(resultado).toBeNull()
   })
 
   it('devuelve null si ni la ruta ni el índice encuentran el archivo', async () => {

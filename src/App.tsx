@@ -53,7 +53,7 @@ function App() {
 
   const [busqueda, setBusqueda] = useState('')
   const [fichaAbierta, setFichaAbierta] = useState<string | null>(null)
-  const [fichaClips, setFichaClips] = useState<Record<string, boolean[]>>({})
+  const [fichaClips, setFichaClips] = useState<Record<string, Array<FileSystemFileHandle | null>>>({})
   const [metaPorPath, setMetaPorPath] = useState<Record<string, UserMetaRecord>>({})
 
   const proyectosVisibles = useMemo(() => {
@@ -197,36 +197,27 @@ function App() {
     setNecesitaPermiso(permiso !== 'granted')
   }
 
+  /** Pide permiso de la carpeta si hace falta. Devuelve si ya lo tenemos. */
+  async function asegurarPermiso(): Promise<boolean> {
+    if (!raizHandle) return false
+    if (!necesitaPermiso) return true
+    const permiso = await raizHandle.requestPermission({ mode: 'read' })
+    setNecesitaPermiso(permiso !== 'granted')
+    return permiso === 'granted'
+  }
+
   async function buscarCambios() {
-    if (!raizHandle) return
-    if (necesitaPermiso) {
-      const permiso = await raizHandle.requestPermission({ mode: 'read' })
-      setNecesitaPermiso(permiso !== 'granted')
-      if (permiso !== 'granted') return
-    }
+    if (!raizHandle || !(await asegurarPermiso())) return
     await escanearCarpeta(raizHandle, true)
   }
 
-  async function onPlayClick(project: ProjectEntry) {
+  async function reproducirHandle(path: string, handle: FileSystemFileHandle) {
     const audioEl = audioElRef.current
-    if (!project.info || !raizHandle || !audioEl) return
-
-    if (necesitaPermiso) {
-      const permiso = await raizHandle.requestPermission({ mode: 'read' })
-      setNecesitaPermiso(permiso !== 'granted')
-      if (permiso !== 'granted') return
-    }
-
-    const mejorClip = elegirMejorClip(project.info.audioClips)
-    if (!mejorClip) return
-
-    const carpetaProyecto = project.path.split('/').slice(0, -1)
-    const audioHandle = await resolverClip(raizHandle, carpetaProyecto, mejorClip, audioIndex)
-    if (!audioHandle) return
+    if (!audioEl) return
 
     if (urlActual) URL.revokeObjectURL(urlActual)
 
-    const file = await audioHandle.getFile()
+    const file = await handle.getFile()
     const inicio = await encontrarInicioSinSilencio(file)
     const url = URL.createObjectURL(file)
 
@@ -240,9 +231,27 @@ function App() {
     audioEl.onended = () => pararReproduccion()
 
     setUrlActual(url)
-    setReproduciendoPath(project.path)
+    setReproduciendoPath(path)
     setProgresoReproduccion(0)
     await audioEl.play()
+  }
+
+  async function onPlayClick(project: ProjectEntry) {
+    if (!project.info || !raizHandle || !(await asegurarPermiso())) return
+
+    const mejorClip = elegirMejorClip(project.info.audioClips)
+    if (!mejorClip) return
+
+    const carpetaProyecto = project.path.split('/').slice(0, -1)
+    const audioHandle = await resolverClip(raizHandle, carpetaProyecto, mejorClip, audioIndex)
+    if (!audioHandle) return
+
+    await reproducirHandle(project.path, audioHandle)
+  }
+
+  async function onPlayClipClick(project: ProjectEntry, handle: FileSystemFileHandle) {
+    if (!(await asegurarPermiso())) return
+    await reproducirHandle(project.path, handle)
   }
 
   async function toggleFicha(project: ProjectEntry) {
@@ -252,13 +261,12 @@ function App() {
     }
     setFichaAbierta(project.path)
 
-    if (!project.info || !raizHandle || fichaClips[project.path]) return
+    if (!project.info || !raizHandle || fichaClips[project.path] || !(await asegurarPermiso())) return
 
     const carpetaProyecto = project.path.split('/').slice(0, -1)
-    const resultados: boolean[] = []
+    const resultados: Array<FileSystemFileHandle | null> = []
     for (const clip of project.info.audioClips) {
-      const handle = await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex)
-      resultados.push(Boolean(handle))
+      resultados.push(await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex))
     }
     setFichaClips((prev) => ({ ...prev, [project.path]: resultados }))
   }
@@ -439,16 +447,27 @@ function App() {
                           <p className="text-gray-500">Solo MIDI</p>
                         ) : (
                           <ul className="ml-3 list-disc text-gray-600">
-                            {clipsDeLaPista.map(({ clip, idx }) => (
-                              <li key={idx}>
-                                {clip.relativePath ?? '(ruta desconocida)'} —{' '}
-                                {fichaClips[project.path]
-                                  ? fichaClips[project.path][idx]
-                                    ? 'encontrado'
-                                    : 'no encontrado'
-                                  : 'comprobando…'}
-                              </li>
-                            ))}
+                            {clipsDeLaPista.map(({ clip, idx }) => {
+                              const resueltos = fichaClips[project.path]
+                              const handle = resueltos?.[idx]
+                              return (
+                                <li key={idx} className="flex items-center gap-2">
+                                  <span>
+                                    {clip.relativePath ?? '(ruta desconocida)'} —{' '}
+                                    {!resueltos ? 'comprobando…' : handle ? 'encontrado' : 'no encontrado'}
+                                  </span>
+                                  {handle && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onPlayClipClick(project, handle)}
+                                      className="rounded-full border border-violet-600 px-2 py-0.5 text-xs text-violet-600 hover:bg-violet-50"
+                                    >
+                                      ▶
+                                    </button>
+                                  )}
+                                </li>
+                              )
+                            })}
                           </ul>
                         )}
                       </div>
