@@ -1,13 +1,10 @@
-import { useState } from 'react'
-import { parseAlsProject, type AlsProjectInfo } from './lib/alsReader'
+import { useEffect, useState } from 'react'
+import { db, ROOT_ID, type ProjectRecord } from './lib/db'
+import { parseAlsProject } from './lib/alsReader'
 import { resolverSegmentos } from './lib/resolvePath'
 import { buscarArchivosAls } from './lib/scanFolder'
 
-interface ProjectEntry {
-  path: string
-  info?: AlsProjectInfo
-  error?: string
-}
+type ProjectEntry = ProjectRecord
 
 interface Progreso {
   leidos: number
@@ -41,27 +38,43 @@ async function reproducir(handle: FileSystemFileHandle) {
 
 function App() {
   const [raizHandle, setRaizHandle] = useState<FileSystemDirectoryHandle | null>(null)
+  const [necesitaPermiso, setNecesitaPermiso] = useState(false)
   const [projects, setProjects] = useState<ProjectEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [progreso, setProgreso] = useState<Progreso | null>(null)
   const [notSupported, setNotSupported] = useState(false)
 
-  async function elegirCarpeta() {
-    if (!('showDirectoryPicker' in window)) {
-      setNotSupported(true)
-      return
-    }
+  // Al abrir la página, recupero la última carpeta y el catálogo guardados.
+  useEffect(() => {
+    let cancelado = false
 
+    ;(async () => {
+      const root = await db.roots.get(ROOT_ID)
+      if (!root || cancelado) return
+
+      setRaizHandle(root.handle)
+      setProjects(await db.projects.toArray())
+
+      const permiso = await root.handle.queryPermission({ mode: 'read' })
+      if (!cancelado) setNecesitaPermiso(permiso !== 'granted')
+    })()
+
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
+  async function escanearCarpeta(raiz: FileSystemDirectoryHandle) {
     setLoading(true)
     setProjects([])
     setProgreso(null)
 
     try {
-      const raiz = await window.showDirectoryPicker()
       setRaizHandle(raiz)
       const archivos = await buscarArchivosAls(raiz)
       setProgreso({ leidos: 0, total: archivos.length })
 
+      const entries: ProjectEntry[] = []
       for (const { handle, path } of archivos) {
         let entry: ProjectEntry
         try {
@@ -72,22 +85,52 @@ function App() {
         } catch {
           entry = { path, error: 'No se pudo leer este archivo' }
         }
+        entries.push(entry)
         setProjects((prev) => [...prev, entry])
         setProgreso((prev) => (prev ? { ...prev, leidos: prev.leidos + 1 } : prev))
       }
-    } catch (err) {
-      if (!(err instanceof DOMException && err.name === 'AbortError')) {
-        throw err
-      }
+
+      await db.roots.put({ id: ROOT_ID, nombre: raiz.name, handle: raiz, ultimoEscaneo: new Date() })
+      await db.projects.clear()
+      await db.projects.bulkPut(entries)
+      setNecesitaPermiso(false)
     } finally {
       setLoading(false)
       setProgreso(null)
     }
   }
 
+  async function elegirCarpeta() {
+    if (!('showDirectoryPicker' in window)) {
+      setNotSupported(true)
+      return
+    }
+
+    try {
+      const raiz = await window.showDirectoryPicker()
+      await escanearCarpeta(raiz)
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        throw err
+      }
+    }
+  }
+
+  async function reconectarCarpeta() {
+    if (!raizHandle) return
+    const permiso = await raizHandle.requestPermission({ mode: 'read' })
+    setNecesitaPermiso(permiso !== 'granted')
+  }
+
   async function onPlayClick(project: ProjectEntry) {
     const relativePath = project.info?.audioClips.find((clip) => clip.relativePath)?.relativePath
     if (!relativePath || !raizHandle) return
+
+    if (necesitaPermiso) {
+      const permiso = await raizHandle.requestPermission({ mode: 'read' })
+      setNecesitaPermiso(permiso !== 'granted')
+      if (permiso !== 'granted') return
+    }
 
     const carpetaProyecto = project.path.split('/').slice(0, -1)
     const segmentos = resolverSegmentos(carpetaProyecto, relativePath)
@@ -102,14 +145,27 @@ function App() {
       <h1 className="text-2xl font-semibold">ProjectRescue</h1>
       <p className="mt-1 text-sm text-gray-500">Tus archivos no salen de este ordenador.</p>
 
-      <button
-        type="button"
-        onClick={elegirCarpeta}
-        disabled={loading}
-        className="mt-6 rounded-md bg-violet-600 px-4 py-2 text-white hover:bg-violet-700 disabled:opacity-50"
-      >
-        {loading ? 'Escaneando…' : 'Elegir carpeta de proyectos'}
-      </button>
+      <div className="mt-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={elegirCarpeta}
+          disabled={loading}
+          className="rounded-md bg-violet-600 px-4 py-2 text-white hover:bg-violet-700 disabled:opacity-50"
+        >
+          {loading ? 'Escaneando…' : 'Elegir carpeta de proyectos'}
+        </button>
+
+        {necesitaPermiso && (
+          <button
+            type="button"
+            onClick={reconectarCarpeta}
+            disabled={loading}
+            className="rounded-md border border-violet-600 px-4 py-2 text-violet-600 hover:bg-violet-50 disabled:opacity-50"
+          >
+            Reconectar carpeta
+          </button>
+        )}
+      </div>
 
       {progreso && progreso.total > 0 && (
         <div className="mt-3">
