@@ -17,6 +17,7 @@ import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './
 import { resolverClip } from './lib/resolvePath'
 import { debeReutilizarProyecto } from './lib/rescan'
 import { recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
+import { beatsASegundos } from './lib/warpTiming'
 import { generarBarras } from './lib/waveformVisual'
 
 // A partir de cuántos proyectos distintos un archivo cuenta como "repetido".
@@ -425,7 +426,20 @@ function App() {
     await escanearCarpeta(raizHandle, true)
   }
 
-  async function reproducirHandle(path: string, handle: FileSystemFileHandle) {
+  /**
+   * Varios clips distintos pueden compartir un mismo archivo de audio largo,
+   * cada uno usando solo un trozo. Sin esto sonaría siempre desde el
+   * principio del archivo, aunque el clip real esté más adelante.
+   */
+  function calcularTramo(clip: AudioClipInfo): { inicio: number; fin: number } | null {
+    if (clip.inicioBeats == null || clip.finBeats == null || !clip.marcasDeTempo) return null
+    const inicio = beatsASegundos(clip.inicioBeats, clip.marcasDeTempo)
+    const fin = beatsASegundos(clip.finBeats, clip.marcasDeTempo)
+    if (inicio == null || fin == null || fin <= inicio) return null
+    return { inicio, fin }
+  }
+
+  async function reproducirHandle(path: string, handle: FileSystemFileHandle, clip?: AudioClipInfo) {
     const audioEl = audioElRef.current
     if (!audioEl) return
 
@@ -433,12 +447,16 @@ function App() {
 
     const file = await handle.getFile()
     const url = URL.createObjectURL(file)
+    const tramo = clip ? calcularTramo(clip) : null
 
     audioEl.src = url
-    audioEl.currentTime = 0
+    audioEl.currentTime = tramo?.inicio ?? 0
     audioEl.ontimeupdate = () => {
-      const duracion = audioEl.duration
-      setProgresoReproduccion(duracion ? Math.min(1, audioEl.currentTime / duracion) : 0)
+      const inicio = tramo?.inicio ?? 0
+      const fin = tramo?.fin ?? audioEl.duration
+      const total = fin - inicio
+      setProgresoReproduccion(total > 0 ? Math.min(1, (audioEl.currentTime - inicio) / total) : 0)
+      if (tramo && audioEl.currentTime >= tramo.fin) pararReproduccion()
     }
     audioEl.onended = () => pararReproduccion()
 
@@ -463,12 +481,12 @@ function App() {
     const audioHandle = await resolverClip(raizHandle, carpetaProyecto, mejorClip, audioIndex)
     if (!audioHandle) return
 
-    await reproducirHandle(project.path, audioHandle)
+    await reproducirHandle(project.path, audioHandle, mejorClip)
   }
 
-  async function onPlayClipClick(project: ProjectEntry, handle: FileSystemFileHandle) {
+  async function onPlayClipClick(project: ProjectEntry, handle: FileSystemFileHandle, clip: AudioClipInfo) {
     if (!(await asegurarPermiso())) return
-    await reproducirHandle(project.path, handle)
+    await reproducirHandle(project.path, handle, clip)
   }
 
   async function seleccionarProyecto(project: ProjectEntry) {
@@ -921,7 +939,7 @@ function App() {
                                       {handle ? (
                                         <button
                                           type="button"
-                                          onClick={() => onPlayClipClick(proyectoActivo, handle)}
+                                          onClick={() => onPlayClipClick(proyectoActivo, handle, clip)}
                                           className="flex h-5 w-5 shrink-0 items-center justify-center border border-[#c4c0b5] text-[10px] text-[#38352c] hover:border-[#15130f] hover:text-[#15130f]"
                                         >
                                           ▶

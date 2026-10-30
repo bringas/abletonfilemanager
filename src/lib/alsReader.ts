@@ -24,6 +24,26 @@ export interface AudioClipInfo {
    * `reducirClipsPorPista`; no viene así directamente del .als.
    */
   mostrarPorDefecto?: boolean
+  /**
+   * Dónde empieza y termina, dentro del archivo de audio, el trozo que usa
+   * este clip (en "beats warpeados", la misma unidad que `marcasDeTempo`).
+   * Varios clips distintos pueden compartir un mismo archivo largo usando
+   * cada uno un trozo distinto; sin esto, solo se podría reproducir desde
+   * el principio del archivo. Si falta alguno, no se puede calcular.
+   */
+  inicioBeats?: number
+  finBeats?: number
+  /**
+   * Las marcas de tempo (beat ↔ segundo real) que usa Ableton para "warpear"
+   * este clip. Con al menos dos, se puede convertir `inicioBeats`/`finBeats`
+   * a segundos reales dentro del archivo (ver `src/lib/warpTiming.ts`).
+   */
+  marcasDeTempo?: MarcaDeTempo[]
+}
+
+export interface MarcaDeTempo {
+  segundos: number
+  beats: number
 }
 
 export interface AlsProjectInfo {
@@ -119,6 +139,8 @@ function readAudioClips(doc: Document): AudioClipInfo[] {
       // Si el clip está dentro de un "take lane" (tomas archivadas) o de un
       // clip slot de Session View, Ableton no lo reproduce por defecto.
       const esArchivado = Boolean(clipEl.closest('TakeLane, ClipSlot'))
+      const tramo = readTramoEnBeats(clipEl)
+      const marcasDeTempo = readMarcasDeTempo(clipEl)
 
       clips.push({
         track: trackName,
@@ -126,6 +148,8 @@ function readAudioClips(doc: Document): AudioClipInfo[] {
         originalFileSize: readOriginalFileSize(fileRef),
         durationBeats: readDurationBeats(clipEl),
         ...(esArchivado ? { principal: false } : {}),
+        ...(tramo ? { inicioBeats: tramo.inicio, finBeats: tramo.fin } : {}),
+        ...(marcasDeTempo.length > 0 ? { marcasDeTempo } : {}),
       })
     }
   }
@@ -174,4 +198,38 @@ function readDurationBeats(clipEl: Element): number | null {
 
   const duracion = Number.parseFloat(end) - Number.parseFloat(start)
   return Number.isFinite(duracion) ? duracion : null
+}
+
+/**
+ * El trozo del archivo que usa el clip, en beats "warpeados": no es la
+ * posición en el arreglo (eso es `CurrentStart`/`CurrentEnd`), sino la
+ * región dentro del propio archivo de audio. `HiddenLoopStart`/`End` es la
+ * región real que suena, aunque el bucle visible (`LoopStart`/`End`) esté
+ * desactivado.
+ */
+function readTramoEnBeats(clipEl: Element): { inicio: number; fin: number } | null {
+  const loop = clipEl.querySelector(':scope > Loop')
+  const inicio = loop?.querySelector(':scope > HiddenLoopStart')?.getAttribute('Value')
+  const fin = loop?.querySelector(':scope > HiddenLoopEnd')?.getAttribute('Value')
+  if (!inicio || !fin) return null
+
+  const inicioNum = Number.parseFloat(inicio)
+  const finNum = Number.parseFloat(fin)
+  if (!Number.isFinite(inicioNum) || !Number.isFinite(finNum) || finNum <= inicioNum) return null
+  return { inicio: inicioNum, fin: finNum }
+}
+
+/**
+ * Las marcas de tempo del clip (beat ↔ segundo real del archivo), la misma
+ * información que usa Ableton para "warpear" el audio al tempo del
+ * proyecto. Con dos o más se puede convertir cualquier beat a un segundo
+ * real dentro del archivo (ver `beatsASegundos` en `warpTiming.ts`).
+ */
+function readMarcasDeTempo(clipEl: Element): MarcaDeTempo[] {
+  return Array.from(clipEl.querySelectorAll(':scope > WarpMarkers > WarpMarker'))
+    .map((marcador) => ({
+      segundos: Number.parseFloat(marcador.getAttribute('SecTime') ?? ''),
+      beats: Number.parseFloat(marcador.getAttribute('BeatTime') ?? ''),
+    }))
+    .filter((marca) => Number.isFinite(marca.segundos) && Number.isFinite(marca.beats))
 }

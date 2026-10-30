@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseAlsProject } from './alsReader'
+import { beatsASegundos } from './warpTiming'
 
 /**
  * Estos son proyectos .als reales del usuario (3 de Live 9.7.1, 2 de Live 11.3.13).
@@ -30,7 +31,10 @@ const realFixtures = [
       originalFileSize: 10990316,
     },
   },
-  { file: 'la religiosidad.als', expectedVersion: 'Ableton Live 11.3.13' },
+  // Copia actualizada por el usuario el 30 oct 2026 (ya con las pistas
+  // renombradas: guitarra 1, guitarra 2 izq/der, bass), tras subir de
+  // versión de Live.
+  { file: 'la religiosidad.als', expectedVersion: 'Ableton Live 11.3.43' },
 ]
 
 describe('parseAlsProject con proyectos reales', () => {
@@ -67,6 +71,36 @@ describe('parseAlsProject con proyectos reales', () => {
 
     const archivadas = info.audioClips.filter((clip) => clip.principal === false)
     expect(archivadas.length).toBeGreaterThan(100)
+  })
+
+  // guitarra 1 de "la religiosidad.als": varios clips comparten un mismo
+  // archivo largo ("oscar clean 0019...wav"), cada uno usando un trozo
+  // distinto. Sin leer el tramo real (HiddenLoopStart/End + WarpMarkers),
+  // todos sonarían igual (desde el principio del archivo).
+  const rutaReligiosidad = resolve(process.cwd(), 'tests/fixtures', 'la religiosidad.als')
+  it.skipIf(!existsSync(rutaReligiosidad))('calcula el tramo real de los clips de guitarra 1', async () => {
+    const buffer = await readFile(rutaReligiosidad)
+    const info = await parseAlsProject(new Uint8Array(buffer))
+
+    const deGuitarra1 = info.audioClips.filter((clip) => clip.track === 'guitarra 1' && clip.principal !== false)
+    expect(deGuitarra1.length).toBeGreaterThan(0)
+
+    const tramos = deGuitarra1.map((clip) => {
+      expect(clip.inicioBeats).not.toBeUndefined()
+      expect(clip.finBeats).not.toBeUndefined()
+      expect(clip.marcasDeTempo?.length ?? 0).toBeGreaterThanOrEqual(2)
+      const inicio = beatsASegundos(clip.inicioBeats as number, clip.marcasDeTempo ?? [])
+      const fin = beatsASegundos(clip.finBeats as number, clip.marcasDeTempo ?? [])
+      expect(inicio).not.toBeNull()
+      expect(fin).not.toBeNull()
+      expect((fin as number) - (inicio as number)).toBeGreaterThan(0)
+      return { relativePath: clip.relativePath, inicio, fin }
+    })
+
+    // No todos los clips de "oscar clean 0019...wav" deberían empezar en el
+    // mismo segundo: si lo hicieran, seguiríamos sonando siempre lo mismo.
+    const inicios = new Set(tramos.map((t) => t.inicio))
+    expect(inicios.size).toBeGreaterThan(1)
   })
 
   // Live a veces deja "OriginalFileSize Value=\"0\"" (no es un tamaño real).

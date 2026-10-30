@@ -125,7 +125,7 @@ El objetivo es reconocer la idea en pocos segundos:
 3. Audio consolidado o procesado, en `Samples/Processed`. Las pistas congeladas (`Freeze`) podrían dejar oír partes MIDI; se investiga el martes.
 4. Samples importados de librerías, como último recurso: suenan igual en muchos proyectos.
 
-Dentro de cada grupo gana el clip más largo del arreglo. Suena el archivo entero, desde el principio (sin saltar silencios ni cortar a los 15 segundos).
+Dentro de cada grupo gana el clip más largo del arreglo. Suena el clip entero: no el archivo de audio desde el principio, sino el tramo real que usa ese clip dentro del archivo (varios clips distintos pueden compartir un mismo archivo largo, cada uno con su propio trozo). Ese tramo se calcula con los marcadores de tempo del clip (`HiddenLoopStart`/`HiddenLoopEnd` y `WarpMarkers` del `.als`). Si un clip no trae esa información (por ejemplo, un export suelto detectado en la carpeta, que no está en la sesión), suena el archivo entero desde el principio.
 
 **Cómo se reproduce**
 
