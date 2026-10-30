@@ -9,19 +9,32 @@ import { parseAlsProject } from './alsReader'
  * Viven solo en local (tests/fixtures/*.als está en .gitignore, nunca se suben a
  * GitHub), así que estos tests se saltan solos si los archivos no están presentes.
  * No se verifica el valor exacto de BPM/pistas contra lo que muestra Ableton Live
- * (eso lo confirma el usuario a ojo); aquí solo se comprueba que el lector no se
- * rompe con archivos reales y que saca datos con sentido.
+ * (eso lo confirma el usuario a ojo); aquí se comprueba que el lector no se rompe
+ * con archivos reales, que saca datos con sentido, y que al menos encuentra el
+ * clip de audio real que confirmamos a mano en cada proyecto.
  */
 const realFixtures = [
-  { file: 'idea frsh cheers.als', expectedVersion: 'Ableton Live 9.7.1' },
+  {
+    file: 'idea frsh cheers.als',
+    expectedVersion: 'Ableton Live 9.7.1',
+    // Formato viejo: ruta reconstruida a partir de RelativePathElement + Name.
+    expectedClip: { relativePath: 'Samples/Recorded/0002 3-Audio-1.wav', originalFileSize: null },
+  },
   { file: 'barrera de coral 3.als', expectedVersion: 'Ableton Live 9.7.1' },
   { file: 'idea berto 2.als', expectedVersion: 'Ableton Live 9.7.1' },
-  { file: 'camoeli2.als', expectedVersion: 'Ableton Live 11.3.13' },
+  {
+    file: 'camoeli2.als',
+    expectedVersion: 'Ableton Live 11.3.13',
+    expectedClip: {
+      relativePath: '../../Untitled Project/Samples/Recorded/3-Audio 0001 [2024-10-28 184520].wav',
+      originalFileSize: 10990316,
+    },
+  },
   { file: 'la religiosidad.als', expectedVersion: 'Ableton Live 11.3.13' },
 ]
 
 describe('parseAlsProject con proyectos reales', () => {
-  for (const { file, expectedVersion } of realFixtures) {
+  for (const { file, expectedVersion, expectedClip } of realFixtures) {
     const ruta = resolve(process.cwd(), 'tests/fixtures', file)
 
     it.skipIf(!existsSync(ruta))(`lee "${file}" sin romperse`, async () => {
@@ -32,6 +45,15 @@ describe('parseAlsProject con proyectos reales', () => {
       expect(info.bpm).not.toBeNull()
       expect(info.bpm).toBeGreaterThan(0)
       expect(info.tracks.length).toBeGreaterThan(0)
+
+      if (expectedClip) {
+        expect(info.audioClips).toContainEqual(
+          expect.objectContaining({
+            relativePath: expectedClip.relativePath,
+            originalFileSize: expectedClip.originalFileSize,
+          }),
+        )
+      }
     })
   }
 })

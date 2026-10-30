@@ -1,20 +1,23 @@
+export interface AudioClipInfo {
+  track: string
+  /** Ruta relativa a la carpeta del proyecto. Null si no se pudo determinar. */
+  relativePath: string | null
+  /** Tamaño del archivo original en bytes. Live 9/10 no lo trae; queda en null. */
+  originalFileSize: number | null
+}
+
 export interface AlsProjectInfo {
   liveVersion: string
   bpm: number | null
   tracks: string[]
-  /**
-   * Ruta (relativa a la carpeta del proyecto) del primer audio referenciado.
-   * Por ahora solo soporta el formato "fácil" de Live 11 y 12. En proyectos
-   * de Live 9 y 10 (formato viejo, sin RelativePath) queda en null; eso es T6.
-   */
-  firstAudioClipRelativePath: string | null
+  audioClips: AudioClipInfo[]
 }
 
 const TRACK_TAGS = ['AudioTrack', 'MidiTrack', 'GroupTrack', 'ReturnTrack']
 
 /**
  * Lee los bytes de un archivo .als (un XML comprimido en gzip) y devuelve
- * la versión de Live, el BPM y los nombres de las pistas.
+ * la versión de Live, el BPM, las pistas y los clips de audio referenciados.
  */
 export async function parseAlsProject(bytes: Uint8Array): Promise<AlsProjectInfo> {
   const xmlText = await decompressToText(bytes)
@@ -28,7 +31,7 @@ export async function parseAlsProject(bytes: Uint8Array): Promise<AlsProjectInfo
     liveVersion: readLiveVersion(doc),
     bpm: readBpm(doc),
     tracks: readTrackNames(doc),
-    firstAudioClipRelativePath: readFirstAudioClipRelativePath(doc),
+    audioClips: readAudioClips(doc),
   }
 }
 
@@ -70,12 +73,6 @@ function readBpm(doc: Document): number | null {
   return value ? Number.parseFloat(value) : null
 }
 
-function readFirstAudioClipRelativePath(doc: Document): string | null {
-  const clip = doc.querySelector('Tracks AudioClip')
-  const relativePath = clip?.querySelector('SampleRef > FileRef > RelativePath')?.getAttribute('Value')
-  return relativePath ?? null
-}
-
 function readTrackNames(doc: Document): string[] {
   const tracksRoot = doc.querySelector('Tracks')
   if (!tracksRoot) return []
@@ -83,4 +80,56 @@ function readTrackNames(doc: Document): string[] {
   return Array.from(tracksRoot.children)
     .filter((el) => TRACK_TAGS.includes(el.tagName))
     .map((trackEl) => trackEl.querySelector('Name > EffectiveName')?.getAttribute('Value') ?? '')
+}
+
+function readAudioClips(doc: Document): AudioClipInfo[] {
+  const tracksRoot = doc.querySelector('Tracks')
+  if (!tracksRoot) return []
+
+  const clips: AudioClipInfo[] = []
+
+  for (const trackEl of Array.from(tracksRoot.children)) {
+    if (!TRACK_TAGS.includes(trackEl.tagName)) continue
+    const trackName = trackEl.querySelector('Name > EffectiveName')?.getAttribute('Value') ?? ''
+
+    for (const clipEl of Array.from(trackEl.querySelectorAll('AudioClip'))) {
+      const fileRef = clipEl.querySelector('SampleRef > FileRef')
+      if (!fileRef) continue
+
+      clips.push({
+        track: trackName,
+        relativePath: readRelativePath(fileRef),
+        originalFileSize: readOriginalFileSize(fileRef),
+      })
+    }
+  }
+
+  return clips
+}
+
+/**
+ * Live 11 y 12 (formato fácil): <RelativePath Value="Samples/Recorded/x.wav" />
+ * Live 9 y 10 (formato viejo): <RelativePath><RelativePathElement Dir="Samples" />
+ * <RelativePathElement Dir="Recorded" /></RelativePath> más <Name Value="x.wav" />
+ * como hermano de RelativePath. El bloque <Data> hexadecimal se ignora.
+ */
+function readRelativePath(fileRef: Element): string | null {
+  const relativePathEl = fileRef.querySelector(':scope > RelativePath')
+  if (!relativePathEl) return null
+
+  const valorDirecto = relativePathEl.getAttribute('Value')
+  if (valorDirecto) return valorDirecto
+
+  const carpetas = Array.from(relativePathEl.querySelectorAll('RelativePathElement'))
+    .map((el) => el.getAttribute('Dir'))
+    .filter((dir): dir is string => Boolean(dir))
+  const nombreArchivo = fileRef.querySelector(':scope > Name')?.getAttribute('Value')
+
+  if (carpetas.length === 0 && !nombreArchivo) return null
+  return [...carpetas, nombreArchivo].filter(Boolean).join('/')
+}
+
+function readOriginalFileSize(fileRef: Element): number | null {
+  const value = fileRef.querySelector(':scope > OriginalFileSize')?.getAttribute('Value')
+  return value ? Number.parseInt(value, 10) : null
 }

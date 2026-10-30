@@ -99,7 +99,7 @@ function App() {
   }
 
   async function onPlayClick(project: ProjectEntry) {
-    const relativePath = project.info?.firstAudioClipRelativePath
+    const relativePath = project.info?.audioClips.find((clip) => clip.relativePath)?.relativePath
     if (!relativePath || !raizHandle) return
 
     const carpetaProyecto = project.path.split('/').slice(0, -1)
@@ -143,7 +143,7 @@ function App() {
                 </p>
               )}
             </div>
-            {project.info?.firstAudioClipRelativePath && (
+            {project.info?.audioClips.some((clip) => clip.relativePath) && (
               <button
                 type="button"
                 onClick={() => onPlayClick(project)}
