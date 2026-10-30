@@ -4,6 +4,7 @@ import { coincideBusqueda } from './lib/busqueda'
 import { elegirMejorClip, encontrarExportacionesSueltas, PISTA_EXPORTADO } from './lib/clipPriority'
 import { db, ROOT_ID, type ProjectRecord, type UserMetaRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
+import { reducirClipsPorPista } from './lib/reducirRuido'
 import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './lib/repeticion'
 import { resolverClip } from './lib/resolvePath'
 import { debeReutilizarProyecto } from './lib/rescan'
@@ -143,7 +144,7 @@ function App() {
             const bytes = new Uint8Array(await file.arrayBuffer())
             const infoLeida = await parseAlsProject(bytes)
             const exportacionesSueltas = encontrarExportacionesSueltas(audioFiles, carpetaProyecto)
-            const info =
+            const infoConExportaciones =
               exportacionesSueltas.length === 0
                 ? infoLeida
                 : {
@@ -151,6 +152,12 @@ function App() {
                     tracks: [...infoLeida.tracks, PISTA_EXPORTADO],
                     audioClips: [...infoLeida.audioClips, ...exportacionesSueltas],
                   }
+            // Si una pista tiene muchas tomas sueltas, nos quedamos solo con
+            // la más reciente y la más larga (si hay cientos, es ruido).
+            const info = {
+              ...infoConExportaciones,
+              audioClips: reducirClipsPorPista(infoConExportaciones.audioClips, audioFiles, carpetaProyecto),
+            }
 
             let algunoEncontrado = false
             for (const clip of info.audioClips) {

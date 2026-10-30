@@ -44,7 +44,14 @@ describe('categorizarClip', () => {
 
 describe('encontrarExportacionesSueltas', () => {
   function archivo(parcial: Partial<AudioFileEntry>): AudioFileEntry {
-    return { handle: {} as FileSystemFileHandle, path: 'proyecto/x.wav', name: 'x.wav', size: 0, ...parcial }
+    return {
+      handle: {} as FileSystemFileHandle,
+      path: 'proyecto/x.wav',
+      name: 'x.wav',
+      size: 0,
+      lastModified: 0,
+      ...parcial,
+    }
   }
 
   it('encuentra un archivo de master/bounce en la carpeta del proyecto, aunque no esté en el .als', () => {

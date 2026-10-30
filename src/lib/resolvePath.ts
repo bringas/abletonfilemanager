@@ -1,5 +1,5 @@
 import type { AudioClipInfo } from './alsReader'
-import { buscarEnIndice, type AudioFileEntry } from './scanFolder'
+import { audiosDentroDe, buscarEnIndice, type AudioFileEntry } from './scanFolder'
 
 /**
  * Combina la ruta (como lista de carpetas) de la carpeta de un proyecto con
@@ -53,18 +53,6 @@ export async function resolverClip(
   if (porRuta) return porRuta
 
   const nombreArchivo = segmentos[segmentos.length - 1]
-  const porIndice = buscarEnIndice(audiosDelProyecto(indiceAudios, carpetaProyecto), nombreArchivo, clip.originalFileSize)
+  const porIndice = buscarEnIndice(audiosDentroDe(indiceAudios, carpetaProyecto), nombreArchivo, clip.originalFileSize)
   return porIndice?.handle ?? null
-}
-
-/**
- * Filtra el índice de audios a solo los que están dentro de la carpeta del
- * proyecto (o sus subcarpetas). Sin esto, un nombre de archivo genérico y
- * repetido (p. ej. "1-Audio.wav", típico si no renombras las pistas) podría
- * encontrar por error el archivo de OTRO proyecto con el mismo nombre.
- */
-function audiosDelProyecto(indiceAudios: AudioFileEntry[], carpetaProyecto: string[]): AudioFileEntry[] {
-  if (carpetaProyecto.length === 0) return indiceAudios
-  const prefijo = `${carpetaProyecto.join('/')}/`
-  return indiceAudios.filter((archivo) => archivo.path.startsWith(prefijo))
 }

@@ -20,10 +20,11 @@
 
 ## Pulido antes de publicar (ronda de feedback del usuario)
 
-1. [x] Botón de play por cada clip en la ficha (antes solo se podía oír el clip priorizado)
-2. [x] Arreglado falso positivo "Con audio": la búsqueda de respaldo por nombre (cuando falta la ruta exacta) ahora solo mira dentro de la propia carpeta del proyecto, no toda la carpeta raíz — evitaba que un nombre de archivo genérico (ej. "1-Audio.wav") encontrara por error el de otro proyecto
-3. [~] Detectar master/bounce (código y tests listos; falta probar en Chrome real): el usuario exporta fuera de Ableton y no lo vuelve a importar, así que ahora buscamos directamente en la carpeta del proyecto archivos con nombre de master/mezcla/bounce/export (ampliadas las palabras clave) aunque no estén en el `.als`
-4. [~] Samples repetidos entre proyectos (código y tests listos; falta probar en Chrome real): se cuenta en cuántos proyectos distintos aparece cada archivo (por nombre+tamaño) y hay un interruptor "ignorar grabaciones que se repiten en 3+ proyectos" al elegir qué suena. En la ficha se ve cuántos proyectos comparten cada clip. El umbral (3) es un valor por defecto, se puede ajustar si hace falta
+1. [x] Botón de play por cada clip en la ficha (antes solo se podía oír el clip priorizado) — confirmado por el usuario
+2. [x] Arreglado falso positivo "Con audio": la búsqueda de respaldo por nombre (cuando falta la ruta exacta) ahora solo mira dentro de la propia carpeta del proyecto, no toda la carpeta raíz — confirmado por el usuario
+3. [x] Detectar master/bounce (export suelto en la carpeta, no referenciado en el `.als`, con palabras clave ampliadas) — confirmado por el usuario
+4. [x] Samples repetidos entre proyectos: contador por archivo + interruptor "ignorar grabaciones que se repiten en 3+ proyectos" al elegir qué suena, con el conteo visible en la ficha — confirmado por el usuario
+5. [~] **Ruido dentro de una misma pista** (código y tests listos; falta probar en Chrome real): algunas pistas tienen cientos o miles de tomas cortas grabadas. Ahora, si una pista tiene más de 5 clips, nos quedamos solo con el más reciente (por fecha del archivo) y el más largo — tanto en la ficha como al elegir qué suena. El umbral (5) es un valor por defecto, se puede ajustar
 
 ## Notas de la sesión de hoy
 

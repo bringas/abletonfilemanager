@@ -56,7 +56,13 @@ describe('resolverClip', () => {
     }
     const handleEsperado = {} as FileSystemFileHandle
     const indice: AudioFileEntry[] = [
-      { handle: handleEsperado, path: 'proyecto/Samples/Recorded/audio.wav', name: 'audio.wav', size: 999 },
+      {
+        handle: handleEsperado,
+        path: 'proyecto/Samples/Recorded/audio.wav',
+        name: 'audio.wav',
+        size: 999,
+        lastModified: 0,
+      },
     ]
 
     const resultado = await resolverClip(raizQueNuncaEncuentraNada(), ['proyecto'], clip, indice)
@@ -79,6 +85,7 @@ describe('resolverClip', () => {
         path: 'otro proyecto/Samples/Recorded/1-Audio.wav',
         name: '1-Audio.wav',
         size: 500,
+        lastModified: 0,
       },
     ]
 

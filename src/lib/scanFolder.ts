@@ -8,6 +8,7 @@ export interface AudioFileEntry {
   path: string
   name: string
   size: number
+  lastModified: number
 }
 
 export interface ScanResult {
@@ -58,11 +59,18 @@ export async function recorrerCarpeta(
       alsFiles.push({ handle, path: entryPath })
     } else if (esArchivoDeAudio(name)) {
       const file = await handle.getFile()
-      audioFiles.push({ handle, path: entryPath, name, size: file.size })
+      audioFiles.push({ handle, path: entryPath, name, size: file.size, lastModified: file.lastModified })
     }
   }
 
   return { alsFiles, audioFiles }
+}
+
+/** Filtra el índice de audios a los que están dentro de una carpeta (o sus subcarpetas). */
+export function audiosDentroDe(indiceAudios: AudioFileEntry[], carpeta: string[]): AudioFileEntry[] {
+  if (carpeta.length === 0) return indiceAudios
+  const prefijo = `${carpeta.join('/')}/`
+  return indiceAudios.filter((archivo) => archivo.path.startsWith(prefijo))
 }
 
 /**

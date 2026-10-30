@@ -21,7 +21,7 @@ describe('debeIgnorarse', () => {
 })
 
 function entrada(name: string, size: number, path = name): AudioFileEntry {
-  return { handle: {} as FileSystemFileHandle, path, name, size }
+  return { handle: {} as FileSystemFileHandle, path, name, size, lastModified: 0 }
 }
 
 describe('buscarEnIndice', () => {
