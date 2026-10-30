@@ -8,7 +8,7 @@
 - [x] **T4.** Página mínima: elegir carpeta y listar los `.als` encontrados con su BPM (probado por el usuario en su Chrome real: funciona)
 - [x] **T5.** Encontrar la primera grabación de un proyecto y reproducirla con un botón (probado por el usuario en su Chrome real tras el arreglo de rutas con `..`: funciona. El formato viejo de Live 9/10 sigue sin soportarse, es T6)
 - [x] **T6.** Extraer clips de audio y rutas en formato Live 11-12 y Live 9-10, con tests
-- [ ] **T7.** Escaneo de la carpeta completa con barra de progreso, ignorando `Backup` y archivos `._`
+- [~] **T7.** Escaneo de la carpeta completa con barra de progreso, ignorando `Backup` y archivos `._` (código listo y con tests; falta que el usuario lo pruebe en su Chrome real)
 - [ ] **T8.** Guardar el catálogo en IndexedDB con Dexie: al recargar la página, sigue ahí
 - [ ] **T9.** Índice de audios, búsqueda por nombre y tamaño, y estados de preescucha
 

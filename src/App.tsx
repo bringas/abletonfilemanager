@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { parseAlsProject, type AlsProjectInfo } from './lib/alsReader'
 import { resolverSegmentos } from './lib/resolvePath'
+import { buscarArchivosAls } from './lib/scanFolder'
 
 interface ProjectEntry {
   path: string
@@ -8,27 +9,9 @@ interface ProjectEntry {
   error?: string
 }
 
-interface FoundAls {
-  handle: FileSystemFileHandle
-  path: string
-}
-
-async function buscarArchivosAls(
-  dirHandle: FileSystemDirectoryHandle,
-  path = '',
-): Promise<FoundAls[]> {
-  const encontrados: FoundAls[] = []
-
-  for await (const [name, handle] of dirHandle.entries()) {
-    const entryPath = path ? `${path}/${name}` : name
-    if (handle.kind === 'directory') {
-      encontrados.push(...(await buscarArchivosAls(handle, entryPath)))
-    } else if (name.toLowerCase().endsWith('.als')) {
-      encontrados.push({ handle, path: entryPath })
-    }
-  }
-
-  return encontrados
+interface Progreso {
+  leidos: number
+  total: number
 }
 
 async function resolverArchivo(
@@ -60,6 +43,7 @@ function App() {
   const [raizHandle, setRaizHandle] = useState<FileSystemDirectoryHandle | null>(null)
   const [projects, setProjects] = useState<ProjectEntry[]>([])
   const [loading, setLoading] = useState(false)
+  const [progreso, setProgreso] = useState<Progreso | null>(null)
   const [notSupported, setNotSupported] = useState(false)
 
   async function elegirCarpeta() {
@@ -70,31 +54,34 @@ function App() {
 
     setLoading(true)
     setProjects([])
+    setProgreso(null)
 
     try {
       const raiz = await window.showDirectoryPicker()
       setRaizHandle(raiz)
       const archivos = await buscarArchivosAls(raiz)
+      setProgreso({ leidos: 0, total: archivos.length })
 
-      const entries: ProjectEntry[] = []
       for (const { handle, path } of archivos) {
+        let entry: ProjectEntry
         try {
           const file = await handle.getFile()
           const bytes = new Uint8Array(await file.arrayBuffer())
           const info = await parseAlsProject(bytes)
-          entries.push({ path, info })
+          entry = { path, info }
         } catch {
-          entries.push({ path, error: 'No se pudo leer este archivo' })
+          entry = { path, error: 'No se pudo leer este archivo' }
         }
+        setProjects((prev) => [...prev, entry])
+        setProgreso((prev) => (prev ? { ...prev, leidos: prev.leidos + 1 } : prev))
       }
-
-      setProjects(entries)
     } catch (err) {
       if (!(err instanceof DOMException && err.name === 'AbortError')) {
         throw err
       }
     } finally {
       setLoading(false)
+      setProgreso(null)
     }
   }
 
@@ -123,6 +110,20 @@ function App() {
       >
         {loading ? 'Escaneando…' : 'Elegir carpeta de proyectos'}
       </button>
+
+      {progreso && progreso.total > 0 && (
+        <div className="mt-3">
+          <p className="text-sm text-gray-500">
+            {progreso.leidos} de {progreso.total} proyectos
+          </p>
+          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className="h-full rounded-full bg-violet-600 transition-all"
+              style={{ width: `${(progreso.leidos / progreso.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {notSupported && (
         <p className="mt-4 text-sm text-red-600">
