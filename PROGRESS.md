@@ -3,7 +3,7 @@
 Última actualización: 30 oct 2026.
 
 - [x] **T1.** Crear el proyecto (Vite, React, TypeScript, Tailwind), Git, CLAUDE.md, PROGRESS.md e IDEAS.md
-- [ ] **T2.** Subir a GitHub y publicar la página vacía en Vercel
+- [x] **T2.** Subir a GitHub y publicar la página vacía en Vercel — https://github.com/bringas/abletonfilemanager y https://abletonfilemanager.vercel.app/
 - [~] **T3.** Lector: función que recibe los bytes de un `.als` y devuelve versión de Live, BPM y pistas, con tests sobre los cinco fixtures (código y tests listos con 3 fixtures *sintéticos*; faltan los 5 `.als` reales del usuario)
 - [~] **T4.** Página mínima: elegir carpeta y listar los `.als` encontrados con su BPM (código listo; el navegador integrado de esta sesión no puede abrir el diálogo nativo de carpetas, falta que el usuario lo pruebe en su Chrome/Edge real)
 - [~] **T5.** Encontrar la primera grabación de un proyecto y reproducirla con un botón (código listo, mismo motivo que T4; solo soporta el formato de ruta "fácil" de Live 11/12 por ahora)
