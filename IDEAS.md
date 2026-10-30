@@ -5,7 +5,7 @@ Sacado de [docs/SPEC.md](docs/SPEC.md). No tocar nada de esto hasta que el MVP (
 ## Si sobra tiempo (prioridad sobre "fuera del MVP")
 
 - Varias carpetas raíz (por ejemplo, la de samples)
-- Forma de onda en miniatura
+- Forma de onda real (decodificando el audio): hoy la ficha dibuja una forma de onda decorativa (no es el audio real, `src/lib/waveformVisual.ts`) para no ralentizar proyectos con muchos clips
 - Exportar e importar el catálogo como copia de seguridad
 - Modo de sesión única para Safari y Firefox
 
