@@ -14,8 +14,8 @@
 - [x] **T10.** Biblioteca: lista con orden por fecha y búsqueda (probado por el usuario en su Chrome real: funciona)
 - [x] **T11.** Play con la regla de "qué grabación suena primero" (master/export > grabado > procesado > librería, el más largo de cada grupo), saltando el silencio inicial, con barra de progreso, botón de parar y un solo audio a la vez (probado por el usuario: funciona)
 - [x] **T12.** Ficha de proyecto: pistas, clips y estado de cada archivo (probado por el usuario: funciona)
-- [~] **T13.** Alias, etiquetas y favoritos en la tabla `userMeta` (código y tests listos; falta probar en Chrome real)
-- [~] **T14.** Reconectar carpeta y reescaneo de proyectos nuevos o modificados ("Buscar cambios": código y tests listos; falta probar en Chrome real modificando algún proyecto entre medias)
+- [x] **T13.** Alias, etiquetas y favoritos en la tabla `userMeta` (probado por el usuario: funciona)
+- [x] **T14.** Reconectar carpeta y reescaneo de proyectos nuevos o modificados (probado por el usuario: funciona)
 - [ ] **T15.** Prueba con tu biblioteca completa; lista de fallos y arreglos. Congelación
 
 ## Notas de la sesión de hoy
