@@ -37,7 +37,12 @@ function raizQueNuncaEncuentraNada(): FileSystemDirectoryHandle {
 
 describe('resolverClip', () => {
   it('devuelve null si el clip no tiene ruta relativa', async () => {
-    const clip: AudioClipInfo = { track: 'Voz', relativePath: null, originalFileSize: null }
+    const clip: AudioClipInfo = {
+      track: 'Voz',
+      relativePath: null,
+      originalFileSize: null,
+      durationBeats: null,
+    }
     const resultado = await resolverClip(raizQueNuncaEncuentraNada(), [], clip, [])
     expect(resultado).toBeNull()
   })
@@ -47,6 +52,7 @@ describe('resolverClip', () => {
       track: 'Voz',
       relativePath: 'Samples/Recorded/audio.wav',
       originalFileSize: 999,
+      durationBeats: 16,
     }
     const handleEsperado = {} as FileSystemFileHandle
     const indice: AudioFileEntry[] = [
@@ -62,6 +68,7 @@ describe('resolverClip', () => {
       track: 'Voz',
       relativePath: 'Samples/Recorded/audio.wav',
       originalFileSize: 999,
+      durationBeats: 16,
     }
     const resultado = await resolverClip(raizQueNuncaEncuentraNada(), ['proyecto'], clip, [])
     expect(resultado).toBeNull()

@@ -4,6 +4,12 @@ export interface AudioClipInfo {
   relativePath: string | null
   /** Tamaño del archivo original en bytes. Live 9/10 no lo trae; queda en null. */
   originalFileSize: number | null
+  /**
+   * Duración del clip en beats (CurrentEnd - CurrentStart), para comparar qué
+   * clip es "más largo". No es una unidad de tiempo real, pero sirve para
+   * comparar clips dentro del mismo proyecto (mismo tempo).
+   */
+  durationBeats: number | null
 }
 
 export interface AlsProjectInfo {
@@ -100,6 +106,7 @@ function readAudioClips(doc: Document): AudioClipInfo[] {
         track: trackName,
         relativePath: readRelativePath(fileRef),
         originalFileSize: readOriginalFileSize(fileRef),
+        durationBeats: readDurationBeats(clipEl),
       })
     }
   }
@@ -132,4 +139,13 @@ function readRelativePath(fileRef: Element): string | null {
 function readOriginalFileSize(fileRef: Element): number | null {
   const value = fileRef.querySelector(':scope > OriginalFileSize')?.getAttribute('Value')
   return value ? Number.parseInt(value, 10) : null
+}
+
+function readDurationBeats(clipEl: Element): number | null {
+  const start = clipEl.querySelector(':scope > CurrentStart')?.getAttribute('Value')
+  const end = clipEl.querySelector(':scope > CurrentEnd')?.getAttribute('Value')
+  if (!start || !end) return null
+
+  const duracion = Number.parseFloat(end) - Number.parseFloat(start)
+  return Number.isFinite(duracion) ? duracion : null
 }

@@ -11,7 +11,7 @@ Principios no negociables:
 - **Es una web.** Se abre con una URL y no se instala nada.
 - **Nada se sube.** El servidor solo entrega la página. Los proyectos y los audios se leen en local, sin backend, cuentas ni base de datos en la nube.
 - **Solo lectura.** La app nunca mueve, renombra ni modifica archivos. Los nombres nuevos son alias guardados en el catálogo.
-- **El diferencial es oír lo que nunca exportaste.** La preescucha sale de las grabaciones originales del proyecto, no de bounces.
+- **El objetivo es reconocer la idea en segundos, sin abrir Live.** Si el proyecto tiene una mezcla (pista o export llamado algo como "Master", "Mix", "Bounce" o "Export"), esa suena primero porque es la que mejor representa la idea completa. Si no la hay, se usan las grabaciones originales del proyecto.
 
 La monetización queda fuera de este documento y se decidirá con la app funcionando.
 
@@ -118,13 +118,14 @@ Los archivos `.asd` que hay junto a los audios son análisis internos de Live. S
 
 **Qué grabación suena primero**
 
-El objetivo es reconocer la idea en pocos segundos, así que se prioriza lo que es tuyo:
+El objetivo es reconocer la idea en pocos segundos:
 
-1. Audio grabado por ti, en `Samples/Recorded`.
-2. Audio consolidado o procesado, en `Samples/Processed`. Las pistas congeladas (`Freeze`) podrían dejar oír partes MIDI; se investiga el martes.
-3. Samples importados de librerías, como último recurso: suenan igual en muchos proyectos.
+1. **Master/mezcla/export**: una pista o clip cuyo nombre sugiera que es la mezcla completa (`Master`, `Mix`, `Bounce`, `Export`...). Representa mejor la idea que una grabación suelta.
+2. Audio grabado por ti, en `Samples/Recorded`.
+3. Audio consolidado o procesado, en `Samples/Processed`. Las pistas congeladas (`Freeze`) podrían dejar oír partes MIDI; se investiga el martes.
+4. Samples importados de librerías, como último recurso: suenan igual en muchos proyectos.
 
-Dentro de cada grupo gana el clip más largo del arreglo, que suele ser la idea principal. Suenan unos 15 segundos desde el punto en que empieza el clip o, si no se puede calcular, desde el principio del archivo.
+Dentro de cada grupo gana el clip más largo del arreglo. Suenan unos 15 segundos, saltando el silencio inicial cuando lo hay; si no se puede calcular, desde el principio del archivo.
 
 **Cómo se reproduce**
 

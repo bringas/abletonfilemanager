@@ -26,6 +26,7 @@ describe('parseAlsProject', () => {
         track: 'Voz principal',
         relativePath: 'Samples/Recorded/Voz principal.wav',
         originalFileSize: 123456,
+        durationBeats: 16,
       },
     ])
   })
@@ -52,6 +53,7 @@ describe('parseAlsProject', () => {
         track: 'Idea vieja',
         relativePath: 'Samples/Recorded/0002 idea-1.wav',
         originalFileSize: null,
+        durationBeats: 16,
       },
     ])
   })

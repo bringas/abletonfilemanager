@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { parseAlsProject } from './lib/alsReader'
+import { elegirMejorClip } from './lib/clipPriority'
 import { db, ROOT_ID, type ProjectRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
 import { resolverClip } from './lib/resolvePath'
 import { recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
+import { encontrarInicioSinSilencio } from './lib/silenceSkip'
+
+const DURACION_PREESCUCHA_SEGUNDOS = 15
 
 type ProjectEntry = ProjectRecord
 
@@ -26,14 +30,6 @@ const COLOR_ESTADO: Record<EstadoPreescucha, string> = {
   'no legible': 'bg-red-100 text-red-700',
 }
 
-async function reproducir(handle: FileSystemFileHandle) {
-  const file = await handle.getFile()
-  const url = URL.createObjectURL(file)
-  const audio = new Audio(url)
-  audio.addEventListener('ended', () => URL.revokeObjectURL(url))
-  await audio.play()
-}
-
 function App() {
   const [raizHandle, setRaizHandle] = useState<FileSystemDirectoryHandle | null>(null)
   const [necesitaPermiso, setNecesitaPermiso] = useState(false)
@@ -42,6 +38,24 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [progreso, setProgreso] = useState<Progreso | null>(null)
   const [notSupported, setNotSupported] = useState(false)
+
+  // Un único <audio>, reutilizado siempre: así solo suena una cosa a la vez.
+  // Se crea en un efecto (no durante el render) y vive mientras dura la página.
+  const audioElRef = useRef<HTMLAudioElement | null>(null)
+  useEffect(() => {
+    audioElRef.current = new Audio()
+  }, [])
+  const [urlActual, setUrlActual] = useState<string | null>(null)
+  const [reproduciendoPath, setReproduciendoPath] = useState<string | null>(null)
+  const [progresoReproduccion, setProgresoReproduccion] = useState(0)
+
+  function pararReproduccion() {
+    audioElRef.current?.pause()
+    if (urlActual) URL.revokeObjectURL(urlActual)
+    setUrlActual(null)
+    setReproduciendoPath(null)
+    setProgresoReproduccion(0)
+  }
 
   // Al abrir la página, recupero la última carpeta y el catálogo guardados.
   useEffect(() => {
@@ -141,7 +155,8 @@ function App() {
   }
 
   async function onPlayClick(project: ProjectEntry) {
-    if (!project.info || !raizHandle) return
+    const audioEl = audioElRef.current
+    if (!project.info || !raizHandle || !audioEl) return
 
     if (necesitaPermiso) {
       const permiso = await raizHandle.requestPermission({ mode: 'read' })
@@ -149,14 +164,32 @@ function App() {
       if (permiso !== 'granted') return
     }
 
+    const mejorClip = elegirMejorClip(project.info.audioClips)
+    if (!mejorClip) return
+
     const carpetaProyecto = project.path.split('/').slice(0, -1)
-    for (const clip of project.info.audioClips) {
-      const audioHandle = await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex)
-      if (audioHandle) {
-        await reproducir(audioHandle)
-        return
-      }
+    const audioHandle = await resolverClip(raizHandle, carpetaProyecto, mejorClip, audioIndex)
+    if (!audioHandle) return
+
+    if (urlActual) URL.revokeObjectURL(urlActual)
+
+    const file = await audioHandle.getFile()
+    const inicio = await encontrarInicioSinSilencio(file)
+    const url = URL.createObjectURL(file)
+
+    audioEl.src = url
+    audioEl.currentTime = inicio
+    audioEl.ontimeupdate = () => {
+      const transcurrido = audioEl.currentTime - inicio
+      setProgresoReproduccion(Math.min(1, transcurrido / DURACION_PREESCUCHA_SEGUNDOS))
+      if (transcurrido >= DURACION_PREESCUCHA_SEGUNDOS) pararReproduccion()
     }
+    audioEl.onended = () => pararReproduccion()
+
+    setUrlActual(url)
+    setReproduciendoPath(project.path)
+    setProgresoReproduccion(0)
+    await audioEl.play()
   }
 
   return (
@@ -225,16 +258,33 @@ function App() {
                   {ETIQUETA_ESTADO[project.estado]}
                 </span>
               )}
+              {reproduciendoPath === project.path && (
+                <div className="mt-1 h-1 w-40 overflow-hidden rounded-full bg-gray-200">
+                  <div
+                    className="h-full rounded-full bg-violet-600"
+                    style={{ width: `${progresoReproduccion * 100}%` }}
+                  />
+                </div>
+              )}
             </div>
-            {project.estado === 'con audio' && (
-              <button
-                type="button"
-                onClick={() => onPlayClick(project)}
-                className="shrink-0 rounded-full border border-violet-600 px-3 py-1 text-sm text-violet-600 hover:bg-violet-50"
-              >
-                ▶ Reproducir
-              </button>
-            )}
+            {project.estado === 'con audio' &&
+              (reproduciendoPath === project.path ? (
+                <button
+                  type="button"
+                  onClick={pararReproduccion}
+                  className="shrink-0 rounded-full border border-red-600 px-3 py-1 text-sm text-red-600 hover:bg-red-50"
+                >
+                  ■ Parar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onPlayClick(project)}
+                  className="shrink-0 rounded-full border border-violet-600 px-3 py-1 text-sm text-violet-600 hover:bg-violet-50"
+                >
+                  ▶ Reproducir
+                </button>
+              ))}
           </li>
         ))}
       </ul>
