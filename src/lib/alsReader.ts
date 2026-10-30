@@ -11,6 +11,13 @@ export interface AudioClipInfo {
    */
   durationBeats: number | null
   /**
+   * Dónde empieza el clip dentro del arreglo de la canción, en beats desde
+   * el principio del proyecto (`CurrentStart`). Sirve para colocar varias
+   * pistas en su sitio correcto al reproducirlas juntas (ver "mezcla
+   * completa"). No viene en los clips sintetizados (exports sueltos).
+   */
+  startBeats?: number
+  /**
    * false si el clip está dentro de un "take lane" (toma archivada por
    * grabación repetida) o de un clip slot de Session View: Ableton no lo
    * reproduce al abrir el proyecto, solo si lo activas a mano. Si no está
@@ -141,6 +148,7 @@ function readAudioClips(doc: Document): AudioClipInfo[] {
       const esArchivado = Boolean(clipEl.closest('TakeLane, ClipSlot'))
       const tramo = readTramoEnBeats(clipEl)
       const marcasDeTempo = readMarcasDeTempo(clipEl)
+      const startBeats = Number.parseFloat(clipEl.getAttribute('Time') ?? '')
 
       clips.push({
         track: trackName,
@@ -150,6 +158,7 @@ function readAudioClips(doc: Document): AudioClipInfo[] {
         ...(esArchivado ? { principal: false } : {}),
         ...(tramo ? { inicioBeats: tramo.inicio, finBeats: tramo.fin } : {}),
         ...(marcasDeTempo.length > 0 ? { marcasDeTempo } : {}),
+        ...(Number.isFinite(startBeats) ? { startBeats } : {}),
       })
     }
   }

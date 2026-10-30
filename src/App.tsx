@@ -191,6 +191,14 @@ function App() {
   const [reproduciendoPath, setReproduciendoPath] = useState<string | null>(null)
   const [progresoReproduccion, setProgresoReproduccion] = useState(0)
 
+  // Mezcla completa: suma todas las pistas con Web Audio API (no usa el
+  // <audio> de arriba, que solo reproduce un archivo a la vez).
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const fuentesActivasRef = useRef<AudioBufferSourceNode[]>([])
+  const mezclaTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [mezclaReproduciendo, setMezclaReproduciendo] = useState<string | null>(null)
+  const [mezclaCargando, setMezclaCargando] = useState<string | null>(null)
+
   const [busqueda, setBusqueda] = useState('')
   const [carpetaSeleccionada, setCarpetaSeleccionada] = useState<string[]>([])
   const [carpetasExpandidas, setCarpetasExpandidas] = useState<Set<string>>(new Set())
@@ -253,6 +261,22 @@ function App() {
     setUrlActual(null)
     setReproduciendoPath(null)
     setProgresoReproduccion(0)
+  }
+
+  function pararMezcla() {
+    for (const fuente of fuentesActivasRef.current) {
+      try {
+        fuente.stop()
+      } catch {
+        // Si ya había terminado sola, da igual.
+      }
+    }
+    fuentesActivasRef.current = []
+    if (mezclaTimeoutRef.current) {
+      clearTimeout(mezclaTimeoutRef.current)
+      mezclaTimeoutRef.current = null
+    }
+    setMezclaReproduciendo(null)
   }
 
   async function copiarRuta(project: ProjectEntry) {
@@ -443,6 +467,7 @@ function App() {
     const audioEl = audioElRef.current
     if (!audioEl) return
 
+    pararMezcla()
     if (urlActual) URL.revokeObjectURL(urlActual)
 
     const file = await handle.getFile()
@@ -487,6 +512,78 @@ function App() {
   async function onPlayClipClick(project: ProjectEntry, handle: FileSystemFileHandle, clip: AudioClipInfo) {
     if (!(await asegurarPermiso())) return
     await reproducirHandle(project.path, handle, clip)
+  }
+
+  /**
+   * "Mezcla completa": decodifica el clip de cada pista y los reproduce
+   * todos a la vez, cada uno en su sitio del arreglo — una maqueta cruda
+   * sumando las pistas, sin los plugins, volúmenes ni paneo del proyecto
+   * real, y sin las pistas MIDI (no hay forma de sintetizarlas aquí).
+   */
+  async function reproducirMezcla(project: ProjectEntry) {
+    if (!project.info || !raizHandle) return
+    const bpm = project.info.bpm
+    if (!bpm) return
+
+    const ctx = audioContextRef.current ?? new AudioContext()
+    audioContextRef.current = ctx
+
+    pararReproduccion()
+    pararMezcla()
+    if (!(await asegurarPermiso())) return
+    if (ctx.state === 'suspended') await ctx.resume()
+
+    setMezclaCargando(project.path)
+    try {
+      const carpetaProyecto = project.path.split('/').slice(0, -1)
+      const clips = project.info.audioClips.filter((clip) => clip.mostrarPorDefecto !== false)
+
+      const master = ctx.createGain()
+      // Para que sumar varias pistas no sature: cuantas más pistas, más bajo
+      // el volumen de cada una.
+      master.gain.value = 1 / Math.sqrt(Math.max(1, clips.length))
+      master.connect(ctx.destination)
+
+      const margen = 0.3
+      const inicioContexto = ctx.currentTime + margen
+      const fuentes: AudioBufferSourceNode[] = []
+      let finMasTardio = 0
+
+      for (const clip of clips) {
+        const handle = await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex)
+        if (!handle) continue
+
+        const file = await handle.getFile()
+        let buffer: AudioBuffer
+        try {
+          buffer = await ctx.decodeAudioData(await file.arrayBuffer())
+        } catch {
+          continue // formato no decodificable por el navegador (p. ej. algunos AIFF); se omite
+        }
+
+        const tramo = calcularTramo(clip)
+        const offsetEnArchivo = tramo?.inicio ?? 0
+        const duracionEnArchivo = Math.max(0, (tramo ? tramo.fin - offsetEnArchivo : buffer.duration - offsetEnArchivo))
+        if (duracionEnArchivo <= 0) continue
+
+        const posicionEnLaCancion = clip.startBeats != null ? (clip.startBeats * 60) / bpm : 0
+
+        const source = ctx.createBufferSource()
+        source.buffer = buffer
+        source.connect(master)
+        source.start(inicioContexto + posicionEnLaCancion, offsetEnArchivo, duracionEnArchivo)
+        fuentes.push(source)
+        finMasTardio = Math.max(finMasTardio, posicionEnLaCancion + duracionEnArchivo)
+      }
+
+      if (fuentes.length === 0) return
+
+      fuentesActivasRef.current = fuentes
+      setMezclaReproduciendo(project.path)
+      mezclaTimeoutRef.current = setTimeout(() => pararMezcla(), (margen + finMasTardio) * 1000 + 300)
+    } finally {
+      setMezclaCargando(null)
+    }
   }
 
   async function seleccionarProyecto(project: ProjectEntry) {
@@ -788,6 +885,25 @@ function App() {
                         ▶ Reproducir
                       </button>
                     ))}
+                  {proyectoActivo.estado === 'con audio' &&
+                    (mezclaReproduciendo === proyectoActivo.path ? (
+                      <button
+                        type="button"
+                        onClick={pararMezcla}
+                        className="border border-[#b03f3f] px-3 py-1 text-[12px] text-[#b03f3f] hover:bg-[#b03f3f]/10"
+                      >
+                        ■ Parar mezcla
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => reproducirMezcla(proyectoActivo)}
+                        disabled={mezclaCargando === proyectoActivo.path}
+                        className="border border-[#c9c5ba] px-3 py-1 text-[12px] text-[#38352c] hover:border-[#a39e92] disabled:opacity-50"
+                      >
+                        {mezclaCargando === proyectoActivo.path ? 'Preparando mezcla…' : '▶ Mezcla completa'}
+                      </button>
+                    ))}
                   <button
                     type="button"
                     onClick={() => copiarRuta(proyectoActivo)}
@@ -796,6 +912,12 @@ function App() {
                     {rutaCopiada === proyectoActivo.path ? 'Ruta copiada' : 'Copiar ruta'}
                   </button>
                 </div>
+                {mezclaReproduciendo === proyectoActivo.path && (
+                  <p className="mt-1 text-[11px] text-[#9c988d]">
+                    Sumando todas las pistas en bruto: sin plugins, volúmenes ni paneo del proyecto, y sin las pistas
+                    MIDI.
+                  </p>
+                )}
 
                 {reproduciendoPath === proyectoActivo.path && (
                   <div className="mt-2 h-1 w-full max-w-xs overflow-hidden bg-[#ddd9cf]">
