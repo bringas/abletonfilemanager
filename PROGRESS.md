@@ -2,18 +2,18 @@
 
 Última actualización: 1 nov 2026.
 
-## Módulo de optimización — primera versión (1 nov 2026)
+## Módulo de optimización — v2, con reorganización (1 nov 2026)
 
-A petición del usuario, nuevo botón "Limpieza" en la barra lateral: detecta archivos de audio que **ningún proyecto de toda la biblioteca** referencia (ni carril principal, ni tomas archivadas, ni exports sueltos — se comprueba en todos los proyectos a la vez, porque muchos comparten carpetas de sesión entre sí vía rutas con ".."). Muestra la lista y el espacio que ocuparían, y un botón para crear una copia completa de la biblioteca en otra carpeta que tú elijas, con la misma organización de carpetas que ya tienes pero sin esos archivos. **No se borra ni se modifica nada del original**, solo lectura — la copia es nueva y aparte; borrar el original (si quieres) lo haces tú, fuera de la web.
+El usuario pidió mejorar la UI/UX de la v1 y adelantar ya la reorganización (antes era "fase 2"): botón destacado **"OPTIMIZAR"** (único color sólido de toda la interfaz) en la barra lateral. Abre un panel con aviso de seguridad arriba ("no se borra ni se modifica nada de tu ordenador"), y dos columnas: a la izquierda los archivos sobrantes (qué son y cuánto ocupan) y qué carpetas se reorganizan o se quedan igual; a la derecha el árbol de carpetas propuesto. Abajo, "Descargar carpeta optimizada…" (en realidad escribe directamente en la carpeta que el usuario elija, no un `.zip` — pero para un principiante "descargar" es la palabra natural, así que así se llama el botón).
 
-Decisiones tomadas con el usuario antes de construirlo:
-- Alcance: toda la biblioteca de una vez (no proyecto a proyecto).
-- Borrado: la app nunca borra nada por su cuenta, solo señala candidatos.
-- Entrega: copia escrita directamente en una carpeta destino elegida por el usuario (API del navegador, sin memoria ni `.zip` de por medio — así no hay límite real de tamaño).
+Reglas de la reorganización, acordadas con el usuario:
+- La unidad que se mueve es siempre una **carpeta de primer nivel** (donde viven uno o varios proyectos). Nunca se toca la estructura de carpetas *dentro* de un proyecto (`Samples/Recorded`, etc.): eso rompería las referencias que Ableton necesita para encontrar sus audios.
+- Si algún proyecto de una carpeta de primer nivel referencia (con "..") un archivo de otra carpeta de primer nivel distinta — pasa mucho porque el usuario reutiliza carpetas de sesión entre canciones —, **ambas carpetas se dejan fijas** (se copian donde ya estaban): moverlas por separado dejaría esa referencia rota.
+- Las que sí se pueden mover van a: `★ Favoritos` si algún proyecto de dentro es favorito, si no a su primera etiqueta, si no tiene ninguna a "Sin etiqueta".
 
-`src/lib/limpieza.ts` calcula los sobrantes (función pura, con tests). La copia (`copiarCarpeta`/`crearCopiaLimpia` en App.tsx) reutiliza las mismas reglas de ignorar `Backup`/`._...` que el escaneo, y comprueba que la carpeta destino no esté dentro de la de origen antes de empezar. Falta probar en Chrome real.
+`src/lib/optimizacion.ts` calcula el plan (función pura, con tests, incluido el caso de dos carpetas que se referencian entre sí). La copia en App.tsx recorre la carpeta raíz y, por cada carpeta de primer nivel, la escribe en el destino que diga el plan. Falta probar en Chrome real.
 
-Pendiente, aparte (fase 2, a diseñar con el usuario): reorganizar la copia según etiquetas/favoritos en vez de mantener la estructura de carpetas actual.
+Pendiente, aparte: hoy toda una carpeta de primer nivel se mueve en bloque aunque tenga varios proyectos con etiquetas distintas (por seguridad, ver regla de arriba); si el usuario quiere reorganización más fina dentro de una carpeta que no comparte nada con otras, habría que revisarlo.
 
 ## MVP listo (31 oct 2026)
 

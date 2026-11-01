@@ -28,5 +28,6 @@ Sacado de [docs/SPEC.md](docs/SPEC.md). No tocar nada de esto hasta que el MVP (
 - Pistas congeladas (Freeze) podrían dejar oír partes MIDI procesadas. Pendiente de investigar (T15): el usuario no tenía a mano un proyecto con pistas congeladas; retomar cuando aparezca uno.
 - Si las grabaciones del usuario son AIFF, puede hacer falta la librería `audio-decode` porque Chrome no garantiza decodificar AIFF de forma nativa.
 - Reemparejar alias tras mover o renombrar un proyecto (por nombre y tamaño) es para después del MVP.
-- ~~Algunos proyectos tienen cientos de samples huérfanos en `Samples/Recorded`~~ — resuelto: módulo de "Limpieza" (`src/lib/limpieza.ts`), comprueba toda la biblioteca a la vez antes de señalar un archivo como sobrante.
-- Fase 2 de la limpieza (pendiente, a diseñar con el usuario): reorganizar la copia según etiquetas/favoritos en vez de mantener la estructura de carpetas actual — "qué estructura tiene sentido" es una conversación propia, no una decisión técnica.
+- ~~Algunos proyectos tienen cientos de samples huérfanos en `Samples/Recorded`~~ — resuelto: módulo de "Optimizar" (`src/lib/limpieza.ts`), comprueba toda la biblioteca a la vez antes de señalar un archivo como sobrante.
+- ~~Reorganizar la copia según etiquetas/favoritos~~ — resuelto: `src/lib/optimizacion.ts`. Solo mueve carpetas de primer nivel enteras (nunca lo de dentro de un proyecto), y deja fijas las que comparten archivos con otra.
+- Reorganización más fina (por proyecto, no por carpeta de primer nivel entera) cuando esa carpeta no comparte nada con otras — pendiente, a valorar si hace falta tras ver cómo queda el árbol propuesto con la biblioteca real.

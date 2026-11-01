@@ -13,6 +13,7 @@ import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
 import { claveDeCarpeta, construirArbolDeCarpetas, proyectosEnCarpeta, type FolderNode } from './lib/folderTree'
 import { formatoDuracion, formatoFecha, formatoSegundos, formatoTamano } from './lib/formato'
 import { encontrarArchivosSobrantes } from './lib/limpieza'
+import { CARPETA_FAVORITOS, planificarOptimizacion, type GrupoOptimizacion } from './lib/optimizacion'
 import { reducirClipsPorPista } from './lib/reducirRuido'
 import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './lib/repeticion'
 import { resolverClip } from './lib/resolvePath'
@@ -58,12 +59,41 @@ const COLOR_ESTADO: Record<EstadoPreescucha, string> = {
 
 const COLORES_PISTA = ['#b8453c', '#a9842a', '#4f8a43', '#6c4fb0', '#a8447c', '#35827b', '#3570ad', '#827e73']
 
+// Acento para el botón "Optimizar": lo único con color sólido de la interfaz.
+const COLOR_OPTIMIZAR = '#b8453c'
+
 function tipoDePista(clips: AudioClipInfo[]): TipoDePista {
   if (clips.length === 0) return 'midi'
   if (clips.some((clip) => categorizarClip(clip) === 'master' || categorizarClip(clip) === 'grabado')) {
     return 'grabado'
   }
   return 'audio'
+}
+
+/** Agrupa el plan de optimización por carpeta de destino, para pintar el árbol propuesto. */
+function construirArbolPropuesto(grupos: GrupoOptimizacion[]) {
+  const porDestino = new Map<string, GrupoOptimizacion[]>()
+  for (const grupo of grupos) {
+    if (grupo.fija) continue
+    const lista = porDestino.get(grupo.destino[0]) ?? []
+    lista.push(grupo)
+    porDestino.set(grupo.destino[0], lista)
+  }
+
+  const buckets = Array.from(porDestino.entries())
+    .map(([nombre, grupos]) => ({
+      nombre,
+      grupos: [...grupos].sort((a, b) => a.nombreActual.localeCompare(b.nombreActual)),
+    }))
+    .sort((a, b) => {
+      if (a.nombre === CARPETA_FAVORITOS) return -1
+      if (b.nombre === CARPETA_FAVORITOS) return 1
+      return a.nombre.localeCompare(b.nombre)
+    })
+
+  const fijas = grupos.filter((g) => g.fija).sort((a, b) => a.nombreActual.localeCompare(b.nombreActual))
+
+  return { buckets, fijas }
 }
 
 function IconoPista({ tipo, color }: { tipo: TipoDePista; color: string }) {
@@ -223,9 +253,10 @@ function App() {
   const [progresoMezcla, setProgresoMezcla] = useState(0)
   const [duracionMezcla, setDuracionMezcla] = useState(0)
 
-  // Limpieza: copiar la biblioteca a otra carpeta sin los archivos sobrantes.
+  // Optimización: copiar la biblioteca a otra carpeta, reorganizada y sin
+  // los archivos sobrantes. Nunca toca el original.
   const copiaCancelarRef = useRef(false)
-  const [mostrarLimpieza, setMostrarLimpieza] = useState(false)
+  const [mostrarOptimizacion, setMostrarOptimizacion] = useState(false)
   const [copiaEnProgreso, setCopiaEnProgreso] = useState<{ copiados: number; omitidos: number } | null>(null)
   const [errorCopia, setErrorCopia] = useState<string | null>(null)
 
@@ -264,6 +295,10 @@ function App() {
   // Archivos que ningún proyecto de la biblioteca referencia (ver limpieza.ts).
   const archivosSobrantes = useMemo(() => encontrarArchivosSobrantes(projects, audioIndex), [projects, audioIndex])
   const tamanoSobrantes = useMemo(() => archivosSobrantes.reduce((suma, a) => suma + a.size, 0), [archivosSobrantes])
+
+  // Dónde se propone mover cada carpeta de primer nivel (ver optimizacion.ts).
+  const planOptimizacion = useMemo(() => planificarOptimizacion(projects, metaPorPath), [projects, metaPorPath])
+  const arbolPropuesto = useMemo(() => construirArbolPropuesto(planOptimizacion), [planOptimizacion])
 
   function togglePista(projectPath: string, trackName: string) {
     setPistasColapsadas((prev) => {
@@ -573,7 +608,16 @@ function App() {
     }
   }
 
-  async function crearCopiaLimpia() {
+  /** Va creando (y reutilizando) la carpeta destino/segmentos[0]/segmentos[1]/... */
+  async function abrirRuta(destino: FileSystemDirectoryHandle, segmentos: string[]): Promise<FileSystemDirectoryHandle> {
+    let carpeta = destino
+    for (const segmento of segmentos) {
+      carpeta = await carpeta.getDirectoryHandle(segmento, { create: true })
+    }
+    return carpeta
+  }
+
+  async function crearCopiaOptimizada() {
     if (!raizHandle || !(await asegurarPermiso())) return
     setErrorCopia(null)
 
@@ -594,10 +638,35 @@ function App() {
     }
 
     const excluir = new Set(archivosSobrantes.map((archivo) => archivo.path))
+    const planPorNombre = new Map(planOptimizacion.map((grupo) => [grupo.nombreActual, grupo]))
     copiaCancelarRef.current = false
     setCopiaEnProgreso({ copiados: 0, omitidos: 0 })
     try {
-      await copiarCarpeta(raizHandle, destino, [], excluir)
+      for await (const [nombre, handle] of raizHandle.entries()) {
+        if (copiaCancelarRef.current) return
+        if (debeIgnorarse(nombre, handle.kind)) continue
+
+        if (handle.kind !== 'directory') {
+          // Un archivo suelto directamente en la carpeta raíz: se copia tal cual.
+          if (excluir.has(nombre)) {
+            setCopiaEnProgreso((prev) => (prev ? { ...prev, omitidos: prev.omitidos + 1 } : prev))
+            continue
+          }
+          const archivo = await handle.getFile()
+          const destinoHandle = await destino.getFileHandle(nombre, { create: true })
+          const escribible = await destinoHandle.createWritable()
+          await escribible.write(archivo)
+          await escribible.close()
+          setCopiaEnProgreso((prev) => (prev ? { ...prev, copiados: prev.copiados + 1 } : prev))
+          continue
+        }
+
+        // Carpetas de primer nivel: van a donde diga el plan (o se quedan
+        // igual, con su mismo nombre, si no hay ningún proyecto dentro).
+        const destinoSegmentos = planPorNombre.get(nombre)?.destino ?? [nombre]
+        const carpetaDestino = await abrirRuta(destino, destinoSegmentos)
+        await copiarCarpeta(handle, carpetaDestino, [nombre], excluir)
+      }
     } finally {
       setCopiaEnProgreso(null)
     }
@@ -977,10 +1046,11 @@ function App() {
           <div className="shrink-0 border-t border-[#ddd9cf] p-3">
             <button
               type="button"
-              onClick={() => setMostrarLimpieza(true)}
-              className="w-full border border-[#c9c5ba] px-2 py-1.5 text-left text-[12px] text-[#38352c] hover:border-[#a39e92]"
+              onClick={() => setMostrarOptimizacion(true)}
+              className="w-full px-3 py-2 text-center text-[12px] font-bold tracking-[0.1em] text-white"
+              style={{ backgroundColor: COLOR_OPTIMIZAR }}
             >
-              Limpieza{audioIndex.length > 0 ? ` (${archivosSobrantes.length})` : ''}
+              OPTIMIZAR
             </button>
           </div>
         </aside>
@@ -1398,14 +1468,14 @@ function App() {
         </section>
       </div>
 
-      {mostrarLimpieza && (
+      {mostrarOptimizacion && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-6">
-          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden border border-[#c9c5ba] bg-[#f5f4f0] text-[13px]">
+          <div className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden border border-[#c9c5ba] bg-[#f5f4f0] text-[13px]">
             <div className="flex items-center justify-between border-b border-[#ddd9cf] px-4 py-3">
-              <h2 className="text-sm font-bold tracking-[0.1em]">LIMPIEZA DE LA BIBLIOTECA</h2>
+              <h2 className="text-sm font-bold tracking-[0.1em]">OPTIMIZACIÓN DE LA BIBLIOTECA</h2>
               <button
                 type="button"
-                onClick={() => setMostrarLimpieza(false)}
+                onClick={() => setMostrarOptimizacion(false)}
                 aria-label="Cerrar"
                 className="text-[#58544b] hover:text-[#15130f]"
               >
@@ -1413,32 +1483,96 @@ function App() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              {audioIndex.length === 0 ? (
-                <p className="text-[#58544b]">
-                  Para comprobar archivos sobrantes hace falta escanear la carpeta en esta sesión: usa "Cambiar
-                  carpeta…" o "Buscar cambios".
-                </p>
-              ) : archivosSobrantes.length === 0 ? (
-                <p className="text-[#58544b]">No se ha encontrado ningún archivo sobrante. Tu biblioteca está limpia.</p>
-              ) : (
-                <>
-                  <p className="mb-3 text-[#58544b]">
-                    {archivosSobrantes.length} archivo{archivosSobrantes.length === 1 ? '' : 's'} que ningún proyecto
-                    de la biblioteca usa ({formatoTamano(tamanoSobrantes)} en total). No se borra nada aquí: crea una
-                    copia limpia sin ellos y, si quieres, borra tú la carpeta original después.
+            {audioIndex.length === 0 ? (
+              <p className="p-4 text-[#58544b]">
+                Para proponer una optimización hace falta escanear la carpeta en esta sesión: usa "Cambiar carpeta…" o
+                "Buscar cambios".
+              </p>
+            ) : (
+              <>
+                <div className="shrink-0 border-b border-[#ddd9cf] px-4 py-3" style={{ backgroundColor: '#f1ece2' }}>
+                  <p className="text-[12px] text-[#38352c]">
+                    <strong>No se borra ni se modifica nada de tu ordenador.</strong> Esto solo crea, en la carpeta
+                    que elijas, un clon de tu biblioteca optimizado y ordenado. Compruébalo con calma y, cuando estés
+                    seguro de que todo está bien, borra tú la carpeta original — por seguridad, eso lo decides y lo
+                    haces tú.
                   </p>
-                  <ul className="divide-y divide-[#e2ded3]">
-                    {archivosSobrantes.map((archivo) => (
-                      <li key={archivo.path} className="flex items-center justify-between gap-3 py-1.5">
-                        <span className="truncate text-[#38352c]">{archivo.path}</span>
-                        <span className="shrink-0 text-[11px] text-[#9c988d]">{formatoTamano(archivo.size)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
+                </div>
+
+                <div className="flex flex-1 overflow-hidden">
+                  {/* Izquierda: qué se quita y qué pasa con cada carpeta */}
+                  <div className="w-72 shrink-0 overflow-y-auto border-r border-[#ddd9cf] p-4">
+                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">ARCHIVOS SOBRANTES</div>
+                    {archivosSobrantes.length === 0 ? (
+                      <p className="mb-4 text-[#58544b]">Ninguno: no hay nada que sobre.</p>
+                    ) : (
+                      <>
+                        <p className="mb-2 text-[#38352c]">
+                          {archivosSobrantes.length} archivo{archivosSobrantes.length === 1 ? '' : 's'} · {formatoTamano(tamanoSobrantes)}
+                        </p>
+                        <ul className="mb-4 max-h-40 divide-y divide-[#e2ded3] overflow-y-auto">
+                          {archivosSobrantes.map((archivo) => (
+                            <li key={archivo.path} className="flex items-center justify-between gap-2 py-1 text-[11px]">
+                              <span className="truncate text-[#58544b]">{archivo.path}</span>
+                              <span className="shrink-0 text-[#9c988d]">{formatoTamano(archivo.size)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+
+                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">CARPETAS QUE SE REORGANIZAN</div>
+                    <p className="mb-4 text-[#38352c]">
+                      {planOptimizacion.filter((g) => !g.fija).length} de {planOptimizacion.length}
+                    </p>
+
+                    {arbolPropuesto.fijas.length > 0 && (
+                      <>
+                        <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">SE QUEDAN IGUAL</div>
+                        <ul className="space-y-1">
+                          {arbolPropuesto.fijas.map((grupo) => (
+                            <li key={grupo.nombreActual} className="text-[11px] text-[#58544b]">
+                              <span className="text-[#38352c]">{grupo.nombreActual}</span> — comparte archivos con
+                              otra carpeta
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Derecha: árbol de carpetas propuesto */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <div className="mb-2 text-[10px] tracking-[0.1em] text-[#9c988d]">ÁRBOL PROPUESTO</div>
+                    {arbolPropuesto.buckets.length === 0 ? (
+                      <p className="text-[#58544b]">
+                        Ninguna carpeta se puede reorganizar sin romper referencias entre proyectos; se copiarían tal
+                        cual están ahora.
+                      </p>
+                    ) : (
+                      <ul>
+                        {arbolPropuesto.buckets.map((bucket) => (
+                          <li key={bucket.nombre} className="mb-3">
+                            <p className="font-bold text-[#15130f]">{bucket.nombre}</p>
+                            <ul className="ml-4 mt-1 space-y-0.5">
+                              {bucket.grupos.map((grupo) => (
+                                <li key={grupo.nombreActual} className="flex items-center gap-1.5 text-[#38352c]">
+                                  <span className="text-[#9c988d]">└</span>
+                                  {grupo.nombreActual}
+                                  <span className="text-[11px] text-[#9c988d]">
+                                    ({grupo.numeroDeProyectos} proyecto{grupo.numeroDeProyectos === 1 ? '' : 's'})
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="shrink-0 border-t border-[#ddd9cf] p-4">
               {errorCopia && <p className="mb-2 text-[12px] text-[#b03f3f]">{errorCopia}</p>}
@@ -1460,11 +1594,12 @@ function App() {
               ) : (
                 <button
                   type="button"
-                  onClick={crearCopiaLimpia}
+                  onClick={crearCopiaOptimizada}
                   disabled={audioIndex.length === 0}
-                  className="border border-[#15130f] px-3 py-1 text-[12px] text-[#15130f] hover:bg-[#15130f] hover:text-[#f5f4f0] disabled:opacity-50"
+                  className="px-4 py-2 text-[12px] font-bold tracking-[0.05em] text-white disabled:opacity-50"
+                  style={{ backgroundColor: COLOR_OPTIMIZAR }}
                 >
-                  Crear copia limpia en otra carpeta…
+                  Descargar carpeta optimizada…
                 </button>
               )}
             </div>
