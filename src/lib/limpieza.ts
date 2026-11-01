@@ -31,3 +31,33 @@ export function archivosUsados(projects: ProjectRecord[]): Set<string> {
   }
   return usados
 }
+
+export interface GrupoDeSobrantes {
+  /** Carpeta de primer nivel donde están estos archivos. */
+  carpeta: string
+  archivos: AudioFileEntry[]
+  tamano: number
+}
+
+/**
+ * Agrupa los archivos sobrantes por carpeta de primer nivel, de más pesada
+ * a menos, y dentro de cada grupo del más pesado al más ligero — para
+ * poder mostrar de un vistazo dónde está el grueso del espacio a ganar.
+ */
+export function agruparSobrantesPorCarpeta(archivos: AudioFileEntry[]): GrupoDeSobrantes[] {
+  const porCarpeta = new Map<string, AudioFileEntry[]>()
+  for (const archivo of archivos) {
+    const carpeta = archivo.path.split('/')[0] ?? archivo.path
+    const lista = porCarpeta.get(carpeta) ?? []
+    lista.push(archivo)
+    porCarpeta.set(carpeta, lista)
+  }
+
+  return Array.from(porCarpeta.entries())
+    .map(([carpeta, archivosDeLaCarpeta]) => ({
+      carpeta,
+      archivos: [...archivosDeLaCarpeta].sort((a, b) => b.size - a.size),
+      tamano: archivosDeLaCarpeta.reduce((suma, a) => suma + a.size, 0),
+    }))
+    .sort((a, b) => b.tamano - a.tamano)
+}

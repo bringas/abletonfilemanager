@@ -12,7 +12,7 @@ import { db, ROOT_ID, type ProjectRecord, type UserMetaRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
 import { claveDeCarpeta, construirArbolDeCarpetas, proyectosEnCarpeta, type FolderNode } from './lib/folderTree'
 import { formatoDuracion, formatoFecha, formatoSegundos, formatoTamano } from './lib/formato'
-import { encontrarArchivosSobrantes } from './lib/limpieza'
+import { agruparSobrantesPorCarpeta, encontrarArchivosSobrantes } from './lib/limpieza'
 import { CARPETA_FAVORITOS, planificarOptimizacion, type GrupoOptimizacion } from './lib/optimizacion'
 import { reducirClipsPorPista } from './lib/reducirRuido'
 import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './lib/repeticion'
@@ -295,6 +295,7 @@ function App() {
   // Archivos que ningún proyecto de la biblioteca referencia (ver limpieza.ts).
   const archivosSobrantes = useMemo(() => encontrarArchivosSobrantes(projects, audioIndex), [projects, audioIndex])
   const tamanoSobrantes = useMemo(() => archivosSobrantes.reduce((suma, a) => suma + a.size, 0), [archivosSobrantes])
+  const gruposSobrantes = useMemo(() => agruparSobrantesPorCarpeta(archivosSobrantes), [archivosSobrantes])
 
   // Dónde se propone mover cada carpeta de primer nivel (ver optimizacion.ts).
   const planOptimizacion = useMemo(() => planificarOptimizacion(projects, metaPorPath), [projects, metaPorPath])
@@ -1510,11 +1511,36 @@ function App() {
                         <p className="mb-2 text-[#38352c]">
                           {archivosSobrantes.length} archivo{archivosSobrantes.length === 1 ? '' : 's'} · {formatoTamano(tamanoSobrantes)}
                         </p>
-                        <ul className="mb-4 max-h-40 divide-y divide-[#e2ded3] overflow-y-auto">
-                          {archivosSobrantes.map((archivo) => (
-                            <li key={archivo.path} className="flex items-center justify-between gap-2 py-1 text-[11px]">
-                              <span className="truncate text-[#58544b]">{archivo.path}</span>
-                              <span className="shrink-0 text-[#9c988d]">{formatoTamano(archivo.size)}</span>
+                        <ul className="mb-4 max-h-64 space-y-2 overflow-y-auto pr-1">
+                          {gruposSobrantes.map((grupo) => (
+                            <li key={grupo.carpeta}>
+                              <details>
+                                <summary className="cursor-pointer list-none">
+                                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                                    <span className="truncate text-[#38352c]">{grupo.carpeta}</span>
+                                    <span className="shrink-0 text-[#9c988d]">
+                                      {grupo.archivos.length} · {formatoTamano(grupo.tamano)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 h-1.5 w-full bg-[#e2ded3]">
+                                    <div
+                                      className="h-full"
+                                      style={{
+                                        width: `${Math.max(2, (grupo.tamano / Math.max(1, tamanoSobrantes)) * 100)}%`,
+                                        backgroundColor: COLOR_OPTIMIZAR,
+                                      }}
+                                    />
+                                  </div>
+                                </summary>
+                                <ul className="mt-1.5 ml-2 space-y-1 border-l border-[#e2ded3] pl-2">
+                                  {grupo.archivos.map((archivo) => (
+                                    <li key={archivo.path} className="flex items-center justify-between gap-2 text-[11px]">
+                                      <span className="truncate text-[#58544b]">{archivo.path}</span>
+                                      <span className="shrink-0 text-[#9c988d]">{formatoTamano(archivo.size)}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </details>
                             </li>
                           ))}
                         </ul>

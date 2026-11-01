@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AudioClipInfo } from './alsReader'
 import type { ProjectRecord } from './db'
-import { archivosUsados, encontrarArchivosSobrantes } from './limpieza'
+import { agruparSobrantesPorCarpeta, archivosUsados, encontrarArchivosSobrantes } from './limpieza'
 import type { AudioFileEntry } from './scanFolder'
 
 function clip(relativePath: string | null): AudioClipInfo {
@@ -12,9 +12,9 @@ function proyecto(path: string, clips: AudioClipInfo[]): ProjectRecord {
   return { path, info: { liveVersion: '', bpm: 120, tracks: ['Pista'], audioClips: clips } }
 }
 
-function archivo(path: string): AudioFileEntry {
+function archivo(path: string, size = 100): AudioFileEntry {
   const name = path.split('/').pop() ?? path
-  return { handle: {} as FileSystemFileHandle, path, name, size: 100, lastModified: 0 }
+  return { handle: {} as FileSystemFileHandle, path, name, size, lastModified: 0 }
 }
 
 describe('archivosUsados', () => {
@@ -71,5 +71,34 @@ describe('encontrarArchivosSobrantes', () => {
     const sobrantes = encontrarArchivosSobrantes(projects, indice)
 
     expect(sobrantes.map((a) => a.path)).toEqual(['B Project/Samples/Recorded/take.wav'])
+  })
+})
+
+describe('agruparSobrantesPorCarpeta', () => {
+  it('agrupa por carpeta de primer nivel y suma el tamaño', () => {
+    const archivos = [
+      archivo('Ideas/A Project/Samples/Recorded/a.wav', 100),
+      archivo('Ideas/B Project/Samples/Recorded/b.wav', 50),
+      archivo('Finished/C Project/Samples/Recorded/c.wav', 10),
+    ]
+
+    const grupos = agruparSobrantesPorCarpeta(archivos)
+
+    expect(grupos.map((g) => g.carpeta)).toEqual(['Ideas', 'Finished'])
+    expect(grupos[0].tamano).toBe(150)
+    expect(grupos[1].tamano).toBe(10)
+  })
+
+  it('ordena las carpetas de más pesada a menos, y los archivos dentro igual', () => {
+    const archivos = [
+      archivo('A/pequeno.wav', 10),
+      archivo('A/grande.wav', 200),
+      archivo('B/medio.wav', 50),
+    ]
+
+    const grupos = agruparSobrantesPorCarpeta(archivos)
+
+    expect(grupos.map((g) => g.carpeta)).toEqual(['A', 'B'])
+    expect(grupos[0].archivos.map((a) => a.name)).toEqual(['grande.wav', 'pequeno.wav'])
   })
 })

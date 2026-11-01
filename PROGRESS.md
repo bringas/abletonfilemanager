@@ -15,6 +15,12 @@ Reglas de la reorganización, acordadas con el usuario:
 
 Pendiente, aparte: hoy toda una carpeta de primer nivel se mueve en bloque aunque tenga varios proyectos con etiquetas distintas (por seguridad, ver regla de arriba); si el usuario quiere reorganización más fina dentro de una carpeta que no comparte nada con otras, habría que revisarlo.
 
+### Lista de archivos sobrantes, más visual (1 nov 2026)
+
+Antes era una lista plana. Ahora `agruparSobrantesPorCarpeta` (`src/lib/limpieza.ts`) la agrupa por carpeta de primer nivel, ordenada de la más pesada a la más ligera (y los archivos dentro de cada una igual), con una barra proporcional al peso de cada carpeta sobre el total — así se ve de un vistazo dónde está el grueso del espacio a ganar. Cada carpeta se puede desplegar (`<details>`) para ver sus archivos uno a uno.
+
+**Siguiente paso, pendiente de que el usuario dé el visto bueno a esta presentación:** trabajar el sistema de "buenas prácticas" para la reorganización en sí (hoy es solo favorito > primera etiqueta > "Sin etiqueta"; el usuario quiere algo más elaborado, a definir con él).
+
 ## MVP listo (31 oct 2026)
 
 Confirmado por el usuario tras probar a fondo con su biblioteca real: catalogado, preescucha (individual y mezcla completa), búsqueda, alias/etiquetas/favoritos, reescaneo y el rediseño visual. Pendiente de verdad para más adelante: investigar "Congelación"/Freeze (falta un proyecto de ejemplo) y los samples huérfanos — ambos en [IDEAS.md](../IDEAS.md).
