@@ -12,11 +12,12 @@ import { db, ROOT_ID, type ProjectRecord, type UserMetaRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
 import { claveDeCarpeta, construirArbolDeCarpetas, proyectosEnCarpeta, type FolderNode } from './lib/folderTree'
 import { formatoDuracion, formatoFecha, formatoSegundos, formatoTamano } from './lib/formato'
+import { encontrarArchivosSobrantes } from './lib/limpieza'
 import { reducirClipsPorPista } from './lib/reducirRuido'
 import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './lib/repeticion'
 import { resolverClip } from './lib/resolvePath'
 import { debeReutilizarProyecto } from './lib/rescan'
-import { recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
+import { debeIgnorarse, recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
 import { beatsASegundos } from './lib/warpTiming'
 import { generarBarras } from './lib/waveformVisual'
 
@@ -222,6 +223,12 @@ function App() {
   const [progresoMezcla, setProgresoMezcla] = useState(0)
   const [duracionMezcla, setDuracionMezcla] = useState(0)
 
+  // Limpieza: copiar la biblioteca a otra carpeta sin los archivos sobrantes.
+  const copiaCancelarRef = useRef(false)
+  const [mostrarLimpieza, setMostrarLimpieza] = useState(false)
+  const [copiaEnProgreso, setCopiaEnProgreso] = useState<{ copiados: number; omitidos: number } | null>(null)
+  const [errorCopia, setErrorCopia] = useState<string | null>(null)
+
   const [busqueda, setBusqueda] = useState('')
   const [carpetaSeleccionada, setCarpetaSeleccionada] = useState<string[]>([])
   const [carpetasExpandidas, setCarpetasExpandidas] = useState<Set<string>>(new Set())
@@ -253,6 +260,10 @@ function App() {
   const proyectoActivo = proyectoSeleccionado ? (projects.find((p) => p.path === proyectoSeleccionado) ?? null) : null
 
   const tamanoTotalBiblioteca = useMemo(() => audioIndex.reduce((suma, a) => suma + a.size, 0), [audioIndex])
+
+  // Archivos que ningún proyecto de la biblioteca referencia (ver limpieza.ts).
+  const archivosSobrantes = useMemo(() => encontrarArchivosSobrantes(projects, audioIndex), [projects, audioIndex])
+  const tamanoSobrantes = useMemo(() => archivosSobrantes.reduce((suma, a) => suma + a.size, 0), [archivosSobrantes])
 
   function togglePista(projectPath: string, trackName: string) {
     setPistasColapsadas((prev) => {
@@ -524,6 +535,71 @@ function App() {
       if (!(err instanceof DOMException && err.name === 'AbortError')) {
         throw err
       }
+    }
+  }
+
+  /**
+   * Copia toda la carpeta elegida dentro de `destino`, archivo por archivo,
+   * saltándose lo que ya ignoramos al escanear (Backup, "._...") y los
+   * archivos de `excluir` (los sobrantes). No toca nada del original: solo
+   * lee de ahí y escribe en la carpeta nueva.
+   */
+  async function copiarCarpeta(
+    origen: FileSystemDirectoryHandle,
+    destino: FileSystemDirectoryHandle,
+    ruta: string[],
+    excluir: Set<string>,
+  ) {
+    for await (const [nombre, handle] of origen.entries()) {
+      if (copiaCancelarRef.current) return
+      if (debeIgnorarse(nombre, handle.kind)) continue
+      const rutaHijo = [...ruta, nombre]
+
+      if (handle.kind === 'directory') {
+        const subDestino = await destino.getDirectoryHandle(nombre, { create: true })
+        await copiarCarpeta(handle, subDestino, rutaHijo, excluir)
+      } else {
+        if (excluir.has(rutaHijo.join('/'))) {
+          setCopiaEnProgreso((prev) => (prev ? { ...prev, omitidos: prev.omitidos + 1 } : prev))
+          continue
+        }
+        const archivo = await handle.getFile()
+        const destinoHandle = await destino.getFileHandle(nombre, { create: true })
+        const escribible = await destinoHandle.createWritable()
+        await escribible.write(archivo)
+        await escribible.close()
+        setCopiaEnProgreso((prev) => (prev ? { ...prev, copiados: prev.copiados + 1 } : prev))
+      }
+    }
+  }
+
+  async function crearCopiaLimpia() {
+    if (!raizHandle || !(await asegurarPermiso())) return
+    setErrorCopia(null)
+
+    let destino: FileSystemDirectoryHandle
+    try {
+      destino = await window.showDirectoryPicker()
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      throw err
+    }
+
+    // Si la carpeta destino está dentro de la propia carpeta de origen,
+    // copiar se metería dentro de sí mismo sin parar.
+    const dentroDelOrigen = await raizHandle.resolve(destino)
+    if (dentroDelOrigen) {
+      setErrorCopia('La carpeta destino no puede estar dentro de la carpeta de origen.')
+      return
+    }
+
+    const excluir = new Set(archivosSobrantes.map((archivo) => archivo.path))
+    copiaCancelarRef.current = false
+    setCopiaEnProgreso({ copiados: 0, omitidos: 0 })
+    try {
+      await copiarCarpeta(raizHandle, destino, [], excluir)
+    } finally {
+      setCopiaEnProgreso(null)
     }
   }
 
@@ -896,6 +972,16 @@ function App() {
               <span>Último escaneo</span>
               <span className="text-[#38352c]">{formatoFecha(ultimoEscaneo)}</span>
             </div>
+          </div>
+
+          <div className="shrink-0 border-t border-[#ddd9cf] p-3">
+            <button
+              type="button"
+              onClick={() => setMostrarLimpieza(true)}
+              className="w-full border border-[#c9c5ba] px-2 py-1.5 text-left text-[12px] text-[#38352c] hover:border-[#a39e92]"
+            >
+              Limpieza{audioIndex.length > 0 ? ` (${archivosSobrantes.length})` : ''}
+            </button>
           </div>
         </aside>
 
@@ -1311,6 +1397,80 @@ function App() {
           )}
         </section>
       </div>
+
+      {mostrarLimpieza && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-6">
+          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden border border-[#c9c5ba] bg-[#f5f4f0] text-[13px]">
+            <div className="flex items-center justify-between border-b border-[#ddd9cf] px-4 py-3">
+              <h2 className="text-sm font-bold tracking-[0.1em]">LIMPIEZA DE LA BIBLIOTECA</h2>
+              <button
+                type="button"
+                onClick={() => setMostrarLimpieza(false)}
+                aria-label="Cerrar"
+                className="text-[#58544b] hover:text-[#15130f]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {audioIndex.length === 0 ? (
+                <p className="text-[#58544b]">
+                  Para comprobar archivos sobrantes hace falta escanear la carpeta en esta sesión: usa "Cambiar
+                  carpeta…" o "Buscar cambios".
+                </p>
+              ) : archivosSobrantes.length === 0 ? (
+                <p className="text-[#58544b]">No se ha encontrado ningún archivo sobrante. Tu biblioteca está limpia.</p>
+              ) : (
+                <>
+                  <p className="mb-3 text-[#58544b]">
+                    {archivosSobrantes.length} archivo{archivosSobrantes.length === 1 ? '' : 's'} que ningún proyecto
+                    de la biblioteca usa ({formatoTamano(tamanoSobrantes)} en total). No se borra nada aquí: crea una
+                    copia limpia sin ellos y, si quieres, borra tú la carpeta original después.
+                  </p>
+                  <ul className="divide-y divide-[#e2ded3]">
+                    {archivosSobrantes.map((archivo) => (
+                      <li key={archivo.path} className="flex items-center justify-between gap-3 py-1.5">
+                        <span className="truncate text-[#38352c]">{archivo.path}</span>
+                        <span className="shrink-0 text-[11px] text-[#9c988d]">{formatoTamano(archivo.size)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+
+            <div className="shrink-0 border-t border-[#ddd9cf] p-4">
+              {errorCopia && <p className="mb-2 text-[12px] text-[#b03f3f]">{errorCopia}</p>}
+              {copiaEnProgreso ? (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[12px] text-[#58544b]">
+                    Copiando… {copiaEnProgreso.copiados} copiados, {copiaEnProgreso.omitidos} omitidos
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      copiaCancelarRef.current = true
+                    }}
+                    className="border border-[#b03f3f] px-3 py-1 text-[12px] text-[#b03f3f] hover:bg-[#b03f3f]/10"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={crearCopiaLimpia}
+                  disabled={audioIndex.length === 0}
+                  className="border border-[#15130f] px-3 py-1 text-[12px] text-[#15130f] hover:bg-[#15130f] hover:text-[#f5f4f0] disabled:opacity-50"
+                >
+                  Crear copia limpia en otra carpeta…
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

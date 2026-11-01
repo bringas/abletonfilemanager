@@ -1,6 +1,19 @@
 # Progreso de ProjectRescue
 
-Última actualización: 31 oct 2026.
+Última actualización: 1 nov 2026.
+
+## Módulo de optimización — primera versión (1 nov 2026)
+
+A petición del usuario, nuevo botón "Limpieza" en la barra lateral: detecta archivos de audio que **ningún proyecto de toda la biblioteca** referencia (ni carril principal, ni tomas archivadas, ni exports sueltos — se comprueba en todos los proyectos a la vez, porque muchos comparten carpetas de sesión entre sí vía rutas con ".."). Muestra la lista y el espacio que ocuparían, y un botón para crear una copia completa de la biblioteca en otra carpeta que tú elijas, con la misma organización de carpetas que ya tienes pero sin esos archivos. **No se borra ni se modifica nada del original**, solo lectura — la copia es nueva y aparte; borrar el original (si quieres) lo haces tú, fuera de la web.
+
+Decisiones tomadas con el usuario antes de construirlo:
+- Alcance: toda la biblioteca de una vez (no proyecto a proyecto).
+- Borrado: la app nunca borra nada por su cuenta, solo señala candidatos.
+- Entrega: copia escrita directamente en una carpeta destino elegida por el usuario (API del navegador, sin memoria ni `.zip` de por medio — así no hay límite real de tamaño).
+
+`src/lib/limpieza.ts` calcula los sobrantes (función pura, con tests). La copia (`copiarCarpeta`/`crearCopiaLimpia` en App.tsx) reutiliza las mismas reglas de ignorar `Backup`/`._...` que el escaneo, y comprueba que la carpeta destino no esté dentro de la de origen antes de empezar. Falta probar en Chrome real.
+
+Pendiente, aparte (fase 2, a diseñar con el usuario): reorganizar la copia según etiquetas/favoritos en vez de mantener la estructura de carpetas actual.
 
 ## MVP listo (31 oct 2026)
 
