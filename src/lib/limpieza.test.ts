@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import type { AudioClipInfo } from './alsReader'
 import type { ProjectRecord } from './db'
-import { agruparSobrantesPorCarpeta, archivosUsados, encontrarArchivosSobrantes } from './limpieza'
+import {
+  agruparSobrantesPorCarpeta,
+  archivosUsados,
+  encontrarArchivosSinUsar,
+  encontrarArchivosSobrantes,
+  encontrarCarpetasSinAudios,
+} from './limpieza'
 import type { AudioFileEntry } from './scanFolder'
 
-function clip(relativePath: string | null): AudioClipInfo {
-  return { track: 'Pista', relativePath, originalFileSize: null, durationBeats: null }
+function clip(relativePath: string | null, principal?: boolean): AudioClipInfo {
+  return {
+    track: 'Pista',
+    relativePath,
+    originalFileSize: null,
+    durationBeats: null,
+    ...(principal === false ? { principal: false } : {}),
+  }
 }
 
 function proyecto(path: string, clips: AudioClipInfo[]): ProjectRecord {
@@ -100,5 +112,59 @@ describe('agruparSobrantesPorCarpeta', () => {
 
     expect(grupos.map((g) => g.carpeta)).toEqual(['A', 'B'])
     expect(grupos[0].archivos.map((a) => a.name)).toEqual(['grande.wav', 'pequeno.wav'])
+  })
+})
+
+describe('encontrarArchivosSinUsar', () => {
+  it('un archivo solo referenciado desde una toma archivada está sin usar (no es sobrante)', () => {
+    const projects = [proyecto('A Project/A.als', [clip('Samples/Recorded/vieja.wav', false)])]
+    const indice = [archivo('A Project/Samples/Recorded/vieja.wav')]
+
+    const sinUsar = encontrarArchivosSinUsar(projects, indice)
+    const sobrantes = encontrarArchivosSobrantes(projects, indice)
+
+    expect(sinUsar.map((a) => a.path)).toEqual(['A Project/Samples/Recorded/vieja.wav'])
+    expect(sobrantes).toEqual([])
+  })
+
+  it('si el mismo archivo también está en el carril principal de otro clip, no cuenta como sin usar', () => {
+    const projects = [
+      proyecto('A Project/A.als', [clip('Samples/Recorded/x.wav', false), clip('Samples/Recorded/x.wav')]),
+    ]
+    const indice = [archivo('A Project/Samples/Recorded/x.wav')]
+
+    expect(encontrarArchivosSinUsar(projects, indice)).toEqual([])
+  })
+
+  it('un archivo huérfano no cuenta como sin usar (son categorías distintas)', () => {
+    const projects = [proyecto('A Project/A.als', [])]
+    const indice = [archivo('A Project/Samples/Recorded/huerfano.wav')]
+
+    expect(encontrarArchivosSinUsar(projects, indice)).toEqual([])
+  })
+})
+
+describe('encontrarCarpetasSinAudios', () => {
+  it('una carpeta cuyos audios están todos excluidos se propone vacía', () => {
+    const indice = [
+      archivo('A Project/Samples/Recorded/a.wav'),
+      archivo('A Project/Samples/Recorded/b.wav'),
+      archivo('B Project/Samples/Recorded/c.wav'),
+    ]
+    const excluidos = new Set(['A Project/Samples/Recorded/a.wav', 'A Project/Samples/Recorded/b.wav'])
+
+    const vacias = encontrarCarpetasSinAudios(indice, excluidos)
+
+    expect(vacias).toContain('A Project/Samples/Recorded')
+    expect(vacias).toContain('A Project/Samples')
+    expect(vacias).toContain('A Project')
+    expect(vacias).not.toContain('B Project')
+  })
+
+  it('si queda aunque sea un audio, la carpeta no se propone vacía', () => {
+    const indice = [archivo('A Project/Samples/Recorded/a.wav'), archivo('A Project/Samples/Recorded/b.wav')]
+    const excluidos = new Set(['A Project/Samples/Recorded/a.wav'])
+
+    expect(encontrarCarpetasSinAudios(indice, excluidos)).toEqual([])
   })
 })

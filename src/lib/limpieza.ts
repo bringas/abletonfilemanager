@@ -32,6 +32,66 @@ export function archivosUsados(projects: ProjectRecord[]): Set<string> {
   return usados
 }
 
+/**
+ * Como `archivosUsados`, pero solo contando los clips del carril principal
+ * (lo que Ableton reproduce de verdad): las tomas archivadas en "take
+ * lanes" no cuentan aquí.
+ */
+export function archivosUsadosPrincipalmente(projects: ProjectRecord[]): Set<string> {
+  const usados = new Set<string>()
+  for (const project of projects) {
+    if (!project.info) continue
+    const carpetaProyecto = project.path.split('/').slice(0, -1)
+    for (const clip of project.info.audioClips) {
+      if (!clip.relativePath || clip.principal === false) continue
+      usados.add(resolverSegmentos(carpetaProyecto, clip.relativePath).join('/'))
+    }
+  }
+  return usados
+}
+
+/**
+ * Archivos que sí referencia algún proyecto (no son huérfanos), pero solo
+ * desde tomas archivadas: ninguna pista los usa de verdad. A diferencia de
+ * los sobrantes, alguien podría querer recuperarlos algún día (son tomas
+ * descartadas, no basura), así que se tratan como una categoría aparte.
+ */
+export function encontrarArchivosSinUsar(projects: ProjectRecord[], audioIndex: AudioFileEntry[]): AudioFileEntry[] {
+  const usadosTotal = archivosUsados(projects)
+  const usadosPrincipalmente = archivosUsadosPrincipalmente(projects)
+  return audioIndex.filter((archivo) => usadosTotal.has(archivo.path) && !usadosPrincipalmente.has(archivo.path))
+}
+
+/**
+ * De entre todas las carpetas que contienen al menos un audio, cuáles se
+ * quedarían sin ninguno si se quitaran los archivos de `excluidos` (p. ej.
+ * los sobrantes, y si el usuario también lo pide, los que no se usan). Esas
+ * carpetas no se crean en la copia optimizada: no tiene sentido una carpeta
+ * vacía.
+ */
+export function encontrarCarpetasSinAudios(audioIndex: AudioFileEntry[], excluidos: Set<string>): string[] {
+  const totalPorCarpeta = new Map<string, number>()
+  const excluidosPorCarpeta = new Map<string, number>()
+
+  for (const archivo of audioIndex) {
+    const segmentos = archivo.path.split('/').slice(0, -1)
+    let acumulada = ''
+    for (const segmento of segmentos) {
+      acumulada = acumulada ? `${acumulada}/${segmento}` : segmento
+      totalPorCarpeta.set(acumulada, (totalPorCarpeta.get(acumulada) ?? 0) + 1)
+      if (excluidos.has(archivo.path)) {
+        excluidosPorCarpeta.set(acumulada, (excluidosPorCarpeta.get(acumulada) ?? 0) + 1)
+      }
+    }
+  }
+
+  const vacias: string[] = []
+  for (const [carpeta, total] of totalPorCarpeta) {
+    if (total === (excluidosPorCarpeta.get(carpeta) ?? 0)) vacias.push(carpeta)
+  }
+  return vacias.sort()
+}
+
 export interface GrupoDeSobrantes {
   /** Carpeta de primer nivel donde están estos archivos. */
   carpeta: string

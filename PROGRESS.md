@@ -21,6 +21,15 @@ Antes era una lista plana. Ahora `agruparSobrantesPorCarpeta` (`src/lib/limpieza
 
 **Siguiente paso, pendiente de que el usuario dé el visto bueno a esta presentación:** trabajar el sistema de "buenas prácticas" para la reorganización en sí (hoy es solo favorito > primera etiqueta > "Sin etiqueta"; el usuario quiere algo más elaborado, a definir con él).
 
+### Dos categorías nuevas: "sin usar" y "carpetas vacías" (1 nov 2026)
+
+A petición del usuario:
+
+1. **Encontrado, pero sin usar**: un archivo que sí referencia algún proyecto, pero solo desde tomas archivadas (ninguna pista lo reproduce de verdad). Categoría aparte de los sobrantes a propósito: son tomas descartadas, no basura con la misma certeza, así que por defecto **no** se quitan de la copia — hay una casilla para incluirlas si el usuario quiere. `archivosUsadosPrincipalmente` / `encontrarArchivosSinUsar` en `src/lib/limpieza.ts`.
+2. **Carpetas que se quedarían vacías**: tras quitar los sobrantes (y, si se marca la casilla, los "sin usar"), algunas carpetas se quedan sin ningún audio dentro. Esas carpetas directamente no se crean en la copia optimizada. `encontrarCarpetasSinAudios` calcula cuáles para enseñarlas en el panel; `eliminarCarpetasVacias` en App.tsx hace la limpieza real tras la copia (solo sobre la copia nueva, nunca toca el original).
+
+118 tests en verde. Falta probar en Chrome real.
+
 ## MVP listo (31 oct 2026)
 
 Confirmado por el usuario tras probar a fondo con su biblioteca real: catalogado, preescucha (individual y mezcla completa), búsqueda, alias/etiquetas/favoritos, reescaneo y el rediseño visual. Pendiente de verdad para más adelante: investigar "Congelación"/Freeze (falta un proyecto de ejemplo) y los samples huérfanos — ambos en [IDEAS.md](../IDEAS.md).

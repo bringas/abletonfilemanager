@@ -12,7 +12,12 @@ import { db, ROOT_ID, type ProjectRecord, type UserMetaRecord } from './lib/db'
 import { calcularEstado, type EstadoPreescucha } from './lib/estadoPreescucha'
 import { claveDeCarpeta, construirArbolDeCarpetas, proyectosEnCarpeta, type FolderNode } from './lib/folderTree'
 import { formatoDuracion, formatoFecha, formatoSegundos, formatoTamano } from './lib/formato'
-import { agruparSobrantesPorCarpeta, encontrarArchivosSobrantes } from './lib/limpieza'
+import {
+  agruparSobrantesPorCarpeta,
+  encontrarArchivosSinUsar,
+  encontrarArchivosSobrantes,
+  encontrarCarpetasSinAudios,
+} from './lib/limpieza'
 import { CARPETA_FAVORITOS, planificarOptimizacion, type GrupoOptimizacion } from './lib/optimizacion'
 import { reducirClipsPorPista } from './lib/reducirRuido'
 import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './lib/repeticion'
@@ -259,6 +264,7 @@ function App() {
   const [mostrarOptimizacion, setMostrarOptimizacion] = useState(false)
   const [copiaEnProgreso, setCopiaEnProgreso] = useState<{ copiados: number; omitidos: number } | null>(null)
   const [errorCopia, setErrorCopia] = useState<string | null>(null)
+  const [incluirSinUsar, setIncluirSinUsar] = useState(false)
 
   const [busqueda, setBusqueda] = useState('')
   const [carpetaSeleccionada, setCarpetaSeleccionada] = useState<string[]>([])
@@ -296,6 +302,28 @@ function App() {
   const archivosSobrantes = useMemo(() => encontrarArchivosSobrantes(projects, audioIndex), [projects, audioIndex])
   const tamanoSobrantes = useMemo(() => archivosSobrantes.reduce((suma, a) => suma + a.size, 0), [archivosSobrantes])
   const gruposSobrantes = useMemo(() => agruparSobrantesPorCarpeta(archivosSobrantes), [archivosSobrantes])
+
+  // Archivos que sí usa algún proyecto, pero solo desde tomas archivadas
+  // (ninguna pista los reproduce de verdad). Categoría aparte: no son
+  // basura con la misma certeza que los sobrantes, así que es opcional
+  // quitarlos de la copia optimizada.
+  const archivosSinUsar = useMemo(() => encontrarArchivosSinUsar(projects, audioIndex), [projects, audioIndex])
+  const tamanoSinUsar = useMemo(() => archivosSinUsar.reduce((suma, a) => suma + a.size, 0), [archivosSinUsar])
+  const gruposSinUsar = useMemo(() => agruparSobrantesPorCarpeta(archivosSinUsar), [archivosSinUsar])
+
+  // Qué se quita realmente de la copia optimizada: los sobrantes siempre,
+  // y los "sin usar" solo si el usuario marca la casilla.
+  const archivosAExcluir = useMemo(
+    () => (incluirSinUsar ? [...archivosSobrantes, ...archivosSinUsar] : archivosSobrantes),
+    [archivosSobrantes, archivosSinUsar, incluirSinUsar],
+  )
+  const rutasAExcluir = useMemo(() => new Set(archivosAExcluir.map((a) => a.path)), [archivosAExcluir])
+  // Carpetas que, tras quitar lo anterior, se quedarían sin ningún audio:
+  // no tiene sentido crearlas en la copia optimizada.
+  const carpetasSinAudios = useMemo(
+    () => encontrarCarpetasSinAudios(audioIndex, rutasAExcluir),
+    [audioIndex, rutasAExcluir],
+  )
 
   // Dónde se propone mover cada carpeta de primer nivel (ver optimizacion.ts).
   const planOptimizacion = useMemo(() => planificarOptimizacion(projects, metaPorPath), [projects, metaPorPath])
@@ -609,6 +637,33 @@ function App() {
     }
   }
 
+  /**
+   * Recorre la copia ya hecha (la carpeta destino, nunca el original) y
+   * borra las carpetas que se hayan quedado completamente vacías — p. ej.
+   * un "Samples/Recorded" cuyos archivos eran todos sobrantes. Devuelve si
+   * la carpeta, tras esta limpieza, tiene algo dentro.
+   */
+  async function eliminarCarpetasVacias(carpeta: FileSystemDirectoryHandle): Promise<boolean> {
+    const subcarpetasVacias: string[] = []
+    let tieneAlgo = false
+
+    for await (const [nombre, handle] of carpeta.entries()) {
+      if (handle.kind === 'directory') {
+        const tieneContenido = await eliminarCarpetasVacias(handle)
+        if (tieneContenido) tieneAlgo = true
+        else subcarpetasVacias.push(nombre)
+      } else {
+        tieneAlgo = true
+      }
+    }
+
+    for (const nombre of subcarpetasVacias) {
+      await carpeta.removeEntry(nombre, { recursive: true })
+    }
+
+    return tieneAlgo
+  }
+
   /** Va creando (y reutilizando) la carpeta destino/segmentos[0]/segmentos[1]/... */
   async function abrirRuta(destino: FileSystemDirectoryHandle, segmentos: string[]): Promise<FileSystemDirectoryHandle> {
     let carpeta = destino
@@ -638,7 +693,6 @@ function App() {
       return
     }
 
-    const excluir = new Set(archivosSobrantes.map((archivo) => archivo.path))
     const planPorNombre = new Map(planOptimizacion.map((grupo) => [grupo.nombreActual, grupo]))
     copiaCancelarRef.current = false
     setCopiaEnProgreso({ copiados: 0, omitidos: 0 })
@@ -649,7 +703,7 @@ function App() {
 
         if (handle.kind !== 'directory') {
           // Un archivo suelto directamente en la carpeta raíz: se copia tal cual.
-          if (excluir.has(nombre)) {
+          if (rutasAExcluir.has(nombre)) {
             setCopiaEnProgreso((prev) => (prev ? { ...prev, omitidos: prev.omitidos + 1 } : prev))
             continue
           }
@@ -666,7 +720,11 @@ function App() {
         // igual, con su mismo nombre, si no hay ningún proyecto dentro).
         const destinoSegmentos = planPorNombre.get(nombre)?.destino ?? [nombre]
         const carpetaDestino = await abrirRuta(destino, destinoSegmentos)
-        await copiarCarpeta(handle, carpetaDestino, [nombre], excluir)
+        await copiarCarpeta(handle, carpetaDestino, [nombre], rutasAExcluir)
+      }
+
+      if (!copiaCancelarRef.current) {
+        await eliminarCarpetasVacias(destino)
       }
     } finally {
       setCopiaEnProgreso(null)
@@ -1541,6 +1599,72 @@ function App() {
                                   ))}
                                 </ul>
                               </details>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+
+                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">ENCONTRADO, PERO SIN USAR</div>
+                    {archivosSinUsar.length === 0 ? (
+                      <p className="mb-4 text-[#58544b]">Ninguno.</p>
+                    ) : (
+                      <>
+                        <p className="mb-1 text-[#38352c]">
+                          {archivosSinUsar.length} archivo{archivosSinUsar.length === 1 ? '' : 's'} · {formatoTamano(tamanoSinUsar)}
+                        </p>
+                        <p className="mb-2 text-[11px] text-[#9c988d]">
+                          Son tomas que algún proyecto tiene archivadas, pero ninguna pista reproduce de verdad. No
+                          son basura con la misma certeza que los sobrantes, así que se quedan en la copia salvo que
+                          lo pidas.
+                        </p>
+                        <label className="mb-2 flex items-center gap-2 text-[11px] text-[#38352c]">
+                          <input
+                            type="checkbox"
+                            checked={incluirSinUsar}
+                            onChange={(e) => setIncluirSinUsar(e.target.checked)}
+                          />
+                          Quitarlos también de la copia optimizada
+                        </label>
+                        <ul className="mb-4 max-h-48 space-y-2 overflow-y-auto pr-1">
+                          {gruposSinUsar.map((grupo) => (
+                            <li key={grupo.carpeta}>
+                              <details>
+                                <summary className="cursor-pointer list-none">
+                                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                                    <span className="truncate text-[#38352c]">{grupo.carpeta}</span>
+                                    <span className="shrink-0 text-[#9c988d]">
+                                      {grupo.archivos.length} · {formatoTamano(grupo.tamano)}
+                                    </span>
+                                  </div>
+                                </summary>
+                                <ul className="mt-1.5 ml-2 space-y-1 border-l border-[#e2ded3] pl-2">
+                                  {grupo.archivos.map((archivo) => (
+                                    <li key={archivo.path} className="flex items-center justify-between gap-2 text-[11px]">
+                                      <span className="truncate text-[#58544b]">{archivo.path}</span>
+                                      <span className="shrink-0 text-[#9c988d]">{formatoTamano(archivo.size)}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </details>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+
+                    {carpetasSinAudios.length > 0 && (
+                      <>
+                        <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">
+                          CARPETAS QUE SE QUEDARÍAN VACÍAS
+                        </div>
+                        <p className="mb-2 text-[11px] text-[#9c988d]">
+                          No se crean en la copia optimizada: no tiene sentido una carpeta sin ningún audio dentro.
+                        </p>
+                        <ul className="mb-4 max-h-32 space-y-0.5 overflow-y-auto">
+                          {carpetasSinAudios.map((carpeta) => (
+                            <li key={carpeta} className="truncate text-[11px] text-[#58544b]">
+                              {carpeta}
                             </li>
                           ))}
                         </ul>
