@@ -1,6 +1,16 @@
 # Progreso de ProjectRescue
 
-Última actualización: 1 nov 2026.
+Última actualización: 9 nov 2026.
+
+## Arreglo importante: la mezcla completa casi no sonaba (9 nov 2026)
+
+El usuario reportó que en la mezcla completa casi todos los proyectos tenían mucho silencio al principio y casi nunca sonaba más de una pista a la vez. Causa: la mezcla usaba `project.info.audioClips`, que ya había pasado por `reducirClipsPorPista` (pensado para no saturar la ficha con cientos de tomas, se queda solo con 1-2 clips por pista). Para la mezcla eso es lo peor posible: con solo 1-2 clips por pista, colocados cada uno en su único hueco del arreglo, lo normal es que casi nunca coincidan varias pistas a la vez, y si esos pocos clips caen tarde en la canción, suena silencio hasta llegar ahí.
+
+Arreglo en `reproducirMezcla` (App.tsx): para la mezcla se vuelve a leer el `.als` directamente (sin pasar por la reducción) y se usan **todos** los clips del carril principal de cada pista, cada uno en su sitio real del arreglo — así se reconstruye la canción entera, no un resumen. De paso:
+- El volumen ahora se reparte según el número de pistas (`1/√pistas`), no según el número de clips — antes, con muchos más clips por pista, el volumen salía demasiado bajo.
+- Si varios clips comparten el mismo archivo (copiado y pegado en el arreglo), no se decodifica dos veces.
+
+118 tests en verde (sin tests nuevos: es lógica de `App.tsx`, no tiene tests directos, como el resto de la mezcla). Falta confirmar en Chrome real.
 
 ## Módulo de optimización — v2, con reorganización (1 nov 2026)
 

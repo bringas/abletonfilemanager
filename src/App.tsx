@@ -21,7 +21,7 @@ import {
 import { CARPETA_FAVORITOS, planificarOptimizacion, type GrupoOptimizacion } from './lib/optimizacion'
 import { reducirClipsPorPista } from './lib/reducirRuido'
 import { contarRepeticiones, filtrarRepetidosSiProcede, vecesRepetido } from './lib/repeticion'
-import { resolverClip } from './lib/resolvePath'
+import { resolverArchivo, resolverClip, resolverSegmentos } from './lib/resolvePath'
 import { debeReutilizarProyecto } from './lib/rescan'
 import { debeIgnorarse, recorrerCarpeta, type AudioFileEntry } from './lib/scanFolder'
 import { beatsASegundos } from './lib/warpTiming'
@@ -844,15 +844,22 @@ function App() {
   }
 
   /**
-   * "Mezcla completa": decodifica el clip de cada pista y los reproduce
-   * todos a la vez, cada uno en su sitio del arreglo — una maqueta cruda
-   * sumando las pistas, sin los plugins, volúmenes ni paneo del proyecto
-   * real, y sin las pistas MIDI (no hay forma de sintetizarlas aquí).
+   * "Mezcla completa": decodifica los clips del carril principal de cada
+   * pista y los reproduce todos a la vez, cada uno en su sitio del
+   * arreglo — una maqueta cruda sumando las pistas, sin los plugins,
+   * volúmenes ni paneo del proyecto real, y sin las pistas MIDI (no hay
+   * forma de sintetizarlas aquí).
+   *
+   * Importante: aquí NO se usa `project.info.audioClips` (lo que ya
+   * tenemos guardado), porque ese array ya pasó por `reducirClipsPorPista`
+   * para no saturar la ficha con cientos de tomas — se queda solo con 1 o 2
+   * clips por pista. Para la mezcla eso es justo lo contrario de lo que
+   * hace falta: sonaría casi siempre una sola pista (o ninguna) en vez de
+   * la canción entera. Así que se vuelve a leer el .als y se usan TODOS los
+   * clips del carril principal, en su sitio real del arreglo.
    */
   async function reproducirMezcla(project: ProjectEntry) {
-    if (!project.info || !raizHandle) return
-    const bpm = project.info.bpm
-    if (!bpm) return
+    if (!raizHandle) return
 
     const ctx = audioContextRef.current ?? new AudioContext()
     audioContextRef.current = ctx
@@ -865,28 +872,56 @@ function App() {
     setMezclaCargando(project.path)
     try {
       const carpetaProyecto = project.path.split('/').slice(0, -1)
-      const clips = project.info.audioClips.filter((clip) => clip.mostrarPorDefecto !== false)
+
+      const alsHandle = await resolverArchivo(raizHandle, project.path.split('/'))
+      if (!alsHandle) return
+      const archivoAls = await alsHandle.getFile()
+      const infoCompleta = await parseAlsProject(new Uint8Array(await archivoAls.arrayBuffer()))
+      const bpm = infoCompleta.bpm
+      if (!bpm) return
+
+      // Solo el carril principal: las tomas archivadas no suenan en
+      // Ableton, y aquí tampoco deberían. Sin reducir por pista: queremos
+      // la canción entera, no solo un par de clips por pista.
+      const clips = infoCompleta.audioClips.filter((clip) => clip.principal !== false)
+      const numeroDePistas = new Set(clips.map((clip) => clip.track)).size
 
       const master = ctx.createGain()
-      // Para que sumar varias pistas no sature: cuantas más pistas, más bajo
-      // el volumen de cada una.
-      master.gain.value = 1 / Math.sqrt(Math.max(1, clips.length))
+      // Para que sumar varias pistas no sature: cuantas más pistas puedan
+      // sonar a la vez, más bajo el volumen de cada una. (No es el número
+      // de clips: una pista puede tener muchos clips a lo largo de la
+      // canción, pero solo suena uno de ella cada vez.)
+      master.gain.value = 1 / Math.sqrt(Math.max(1, numeroDePistas))
       master.connect(ctx.destination)
       mezclaGainRef.current = master
 
       const preparados: ClipMezclaPreparado[] = []
+      // Varios clips pueden compartir el mismo archivo (p. ej. copiado y
+      // pegado en varios sitios del arreglo): no lo decodificamos dos veces.
+      const buffersPorRuta = new Map<string, AudioBuffer | null>()
 
       for (const clip of clips) {
-        const handle = await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex)
-        if (!handle) continue
+        if (!clip.relativePath) continue
+        const rutaDelArchivo = resolverSegmentos(carpetaProyecto, clip.relativePath).join('/')
 
-        const file = await handle.getFile()
-        let buffer: AudioBuffer
-        try {
-          buffer = await ctx.decodeAudioData(await file.arrayBuffer())
-        } catch {
-          continue // formato no decodificable por el navegador (p. ej. algunos AIFF); se omite
+        let buffer: AudioBuffer | null
+        if (buffersPorRuta.has(rutaDelArchivo)) {
+          buffer = buffersPorRuta.get(rutaDelArchivo) ?? null
+        } else {
+          const handle = await resolverClip(raizHandle, carpetaProyecto, clip, audioIndex)
+          if (!handle) {
+            buffer = null
+          } else {
+            const file = await handle.getFile()
+            try {
+              buffer = await ctx.decodeAudioData(await file.arrayBuffer())
+            } catch {
+              buffer = null // formato no decodificable por el navegador (p. ej. algunos AIFF); se omite
+            }
+          }
+          buffersPorRuta.set(rutaDelArchivo, buffer)
         }
+        if (!buffer) continue
 
         const tramo = calcularTramo(clip)
         const offset = tramo?.inicio ?? 0
