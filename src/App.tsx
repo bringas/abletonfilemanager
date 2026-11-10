@@ -67,6 +67,12 @@ const COLORES_PISTA = ['#b8453c', '#a9842a', '#4f8a43', '#6c4fb0', '#a8447c', '#
 // Acento para el botón "Optimizar": lo único con color sólido de la interfaz.
 const COLOR_OPTIMIZAR = '#b8453c'
 
+// La copia optimizada siempre se crea dentro de esta subcarpeta fija, nunca
+// suelta directamente en la carpeta destino que elige el usuario: así el
+// resultado no se mezcla con lo que ya hubiera ahí, y siempre es evidente
+// qué carpeta es la copia.
+const CARPETA_BASE_COPIA = 'ProjectRescue'
+
 function tipoDePista(clips: AudioClipInfo[]): TipoDePista {
   if (clips.length === 0) return 'midi'
   if (clips.some((clip) => categorizarClip(clip) === 'master' || categorizarClip(clip) === 'grabado')) {
@@ -706,6 +712,10 @@ function App() {
       return
     }
 
+    // Todo va siempre dentro de esta subcarpeta, nunca suelto en lo que el
+    // usuario eligió como destino (ver CARPETA_BASE_COPIA).
+    const carpetaBase = await destino.getDirectoryHandle(CARPETA_BASE_COPIA, { create: true })
+
     const planPorNombre = new Map(planOptimizacion.map((grupo) => [grupo.nombreActual, grupo]))
     copiaCancelarRef.current = false
     setCopiaEnProgreso({ copiados: 0, omitidos: 0 })
@@ -721,7 +731,7 @@ function App() {
             continue
           }
           const archivo = await handle.getFile()
-          const destinoHandle = await destino.getFileHandle(nombre, { create: true })
+          const destinoHandle = await carpetaBase.getFileHandle(nombre, { create: true })
           const escribible = await destinoHandle.createWritable()
           await escribible.write(archivo)
           await escribible.close()
@@ -732,12 +742,12 @@ function App() {
         // Carpetas de primer nivel: van a donde diga el plan (o se quedan
         // igual, con su mismo nombre, si no hay ningún proyecto dentro).
         const destinoSegmentos = planPorNombre.get(nombre)?.destino ?? [nombre]
-        const carpetaDestino = await abrirRuta(destino, destinoSegmentos)
+        const carpetaDestino = await abrirRuta(carpetaBase, destinoSegmentos)
         await copiarCarpeta(handle, carpetaDestino, [nombre], rutasAExcluir)
       }
 
       if (!copiaCancelarRef.current) {
-        await eliminarCarpetasVacias(destino)
+        await eliminarCarpetasVacias(carpetaBase)
       }
     } finally {
       setCopiaEnProgreso(null)
@@ -1608,10 +1618,10 @@ function App() {
               <>
                 <div className="shrink-0 border-b border-[#ddd9cf] px-4 py-3" style={{ backgroundColor: '#f1ece2' }}>
                   <p className="text-[12px] text-[#38352c]">
-                    <strong>Nothing on your computer is deleted or changed.</strong> This only creates, in the
-                    folder you choose, an optimized and tidy clone of your library. Check it at your own pace, and
-                    once you're sure everything's fine, you delete the original folder yourself — for safety, that's
-                    your call and your action.
+                    <strong>Nothing on your computer is deleted or changed.</strong> This only creates, inside a
+                    "{CARPETA_BASE_COPIA}" folder within the folder you choose, an optimized and tidy clone of your
+                    library. Check it at your own pace, and once you're sure everything's fine, you delete the
+                    original folder yourself — for safety, that's your call and your action.
                   </p>
                 </div>
 
