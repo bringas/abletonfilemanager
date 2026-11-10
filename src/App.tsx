@@ -303,6 +303,19 @@ function App() {
   const tamanoSobrantes = useMemo(() => archivosSobrantes.reduce((suma, a) => suma + a.size, 0), [archivosSobrantes])
   const gruposSobrantes = useMemo(() => agruparSobrantesPorCarpeta(archivosSobrantes), [archivosSobrantes])
 
+  // De los sobrantes de toda la biblioteca, cuáles están dentro de la carpeta
+  // del proyecto que se está viendo ahora: para avisar en su ficha de que hay
+  // audios sueltos aquí mismo que la ficha nunca enseña (no los referencia
+  // ningún clip), en vez de que solo aparezcan si el usuario llega a abrir
+  // OPTIMIZAR por su cuenta.
+  const sobrantesDeLaCarpetaActiva = useMemo(() => {
+    if (!proyectoActivo) return []
+    const carpetaProyecto = proyectoActivo.path.split('/').slice(0, -1).join('/')
+    if (!carpetaProyecto) return []
+    const prefijo = `${carpetaProyecto}/`
+    return archivosSobrantes.filter((archivo) => archivo.path.startsWith(prefijo))
+  }, [proyectoActivo, archivosSobrantes])
+
   // Archivos que sí usa algún proyecto, pero solo desde tomas archivadas
   // (ninguna pista los reproduce de verdad). Categoría aparte: no son
   // basura con la misma certeza que los sobrantes, así que es opcional
@@ -1430,6 +1443,19 @@ function App() {
                   </div>
                 ) : (
                   <>
+                    {sobrantesDeLaCarpetaActiva.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setMostrarOptimizacion(true)}
+                        className="mb-3 block text-left text-[11px] text-[#9c6f1e] underline decoration-dotted"
+                      >
+                        {sobrantesDeLaCarpetaActiva.length === 1
+                          ? 'Esta carpeta tiene 1 archivo de audio que ningún proyecto usa'
+                          : `Esta carpeta tiene ${sobrantesDeLaCarpetaActiva.length} archivos de audio que ningún proyecto usa`}
+                        {' → verlo en OPTIMIZAR'}
+                      </button>
+                    )}
+
                     <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[#58544b]">
                       <label className="flex items-center gap-1.5">
                         <input
