@@ -1184,6 +1184,17 @@ function App() {
               OPTIMIZE
             </button>
           </div>
+
+          <div className="shrink-0 border-t border-[#ddd9cf] p-3 text-center">
+            <a
+              href="https://buymeacoffee.com/cbrg"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-[#9c988d] hover:text-[#716d63]"
+            >
+              ☕ Buy me a coffee
+            </a>
+          </div>
         </aside>
 
         {/* Columna del medio: lista de proyectos */}
