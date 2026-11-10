@@ -1,8 +1,8 @@
 import type { ProjectRecord, UserMetaRecord } from './db'
 import { resolverSegmentos } from './resolvePath'
 
-export const CARPETA_FAVORITOS = '★ Favoritos'
-export const CARPETA_SIN_ETIQUETA = 'Sin etiqueta'
+export const CARPETA_FAVORITOS = '★ Favorites'
+export const CARPETA_SIN_ETIQUETA = 'No tag'
 
 export interface GrupoOptimizacion {
   /** Nombre de la carpeta de primer nivel (hija directa de la raíz) tal y como está ahora. */
