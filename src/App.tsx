@@ -271,6 +271,7 @@ function App() {
   const [copiaEnProgreso, setCopiaEnProgreso] = useState<{ copiados: number; omitidos: number } | null>(null)
   const [errorCopia, setErrorCopia] = useState<string | null>(null)
   const [incluirSinUsar, setIncluirSinUsar] = useState(false)
+  const [excluirProyectosSinAudio, setExcluirProyectosSinAudio] = useState(false)
 
   const [busqueda, setBusqueda] = useState('')
   const [carpetaSeleccionada, setCarpetaSeleccionada] = useState<string[]>([])
@@ -330,13 +331,27 @@ function App() {
   const tamanoSinUsar = useMemo(() => archivosSinUsar.reduce((suma, a) => suma + a.size, 0), [archivosSinUsar])
   const gruposSinUsar = useMemo(() => agruparSobrantesPorCarpeta(archivosSinUsar), [archivosSinUsar])
 
-  // Qué se quita realmente de la copia optimizada: los sobrantes siempre,
-  // y los "sin usar" solo si el usuario marca la casilla.
+  // Proyectos sin ningún audio: solo pistas MIDI. El MIDI no cuenta como
+  // audio aquí (esta app no lo reproduce), así que para "copia optimizada"
+  // son, en la práctica, proyectos sin nada que previsualizar. Categoría
+  // aparte de los archivos de audio sobrantes/sin usar: esto quita el propio
+  // .als del proyecto, no un audio suelto.
+  const proyectosSinAudio = useMemo(() => projects.filter((p) => p.estado === 'solo MIDI'), [projects])
+
+  // Qué se quita realmente de la copia optimizada: los sobrantes siempre, y
+  // los "sin usar" y los proyectos sin audio solo si el usuario marca su
+  // casilla correspondiente.
   const archivosAExcluir = useMemo(
     () => (incluirSinUsar ? [...archivosSobrantes, ...archivosSinUsar] : archivosSobrantes),
     [archivosSobrantes, archivosSinUsar, incluirSinUsar],
   )
-  const rutasAExcluir = useMemo(() => new Set(archivosAExcluir.map((a) => a.path)), [archivosAExcluir])
+  const rutasAExcluir = useMemo(() => {
+    const rutas = new Set(archivosAExcluir.map((a) => a.path))
+    if (excluirProyectosSinAudio) {
+      for (const proyecto of proyectosSinAudio) rutas.add(proyecto.path)
+    }
+    return rutas
+  }, [archivosAExcluir, excluirProyectosSinAudio, proyectosSinAudio])
   // Carpetas que, tras quitar lo anterior, se quedarían sin ningún audio:
   // no tiene sentido crearlas en la copia optimizada.
   const carpetasSinAudios = useMemo(
@@ -1713,6 +1728,36 @@ function App() {
                                   ))}
                                 </ul>
                               </details>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+
+                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">PROJECTS WITH NO AUDIO (MIDI)</div>
+                    {proyectosSinAudio.length === 0 ? (
+                      <p className="mb-4 text-[#58544b]">None.</p>
+                    ) : (
+                      <>
+                        <p className="mb-1 text-[#38352c]">
+                          {proyectosSinAudio.length} project{proyectosSinAudio.length === 1 ? '' : 's'}
+                        </p>
+                        <p className="mb-2 text-[11px] text-[#9c988d]">
+                          These only have MIDI tracks — no recordings to preview. MIDI doesn't count as audio here,
+                          so there's nothing in them this app can play. Kept in the copy unless you ask otherwise.
+                        </p>
+                        <label className="mb-2 flex items-center gap-2 text-[11px] text-[#38352c]">
+                          <input
+                            type="checkbox"
+                            checked={excluirProyectosSinAudio}
+                            onChange={(e) => setExcluirProyectosSinAudio(e.target.checked)}
+                          />
+                          Don't copy these either
+                        </label>
+                        <ul className="mb-4 max-h-32 space-y-0.5 overflow-y-auto">
+                          {proyectosSinAudio.map((proyecto) => (
+                            <li key={proyecto.path} className="truncate text-[11px] text-[#58544b]">
+                              {proyecto.path}
                             </li>
                           ))}
                         </ul>
