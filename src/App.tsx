@@ -49,10 +49,10 @@ interface ClipMezclaPreparado {
 }
 
 const ETIQUETA_ESTADO: Record<EstadoPreescucha, string> = {
-  'con audio': 'Con audio',
-  'solo MIDI': 'Solo MIDI',
-  'audio no encontrado': 'Audio no encontrado',
-  'no legible': 'No legible',
+  'con audio': 'Has audio',
+  'solo MIDI': 'MIDI only',
+  'audio no encontrado': 'Audio not found',
+  'no legible': 'Unreadable',
 }
 
 const COLOR_ESTADO: Record<EstadoPreescucha, string> = {
@@ -573,7 +573,7 @@ function App() {
             entry = { path, info, estado, lastModified }
           }
         } catch {
-          entry = { path, error: 'No se pudo leer este archivo', estado: 'no legible', lastModified }
+          entry = { path, error: "Couldn't read this file", estado: 'no legible', lastModified }
         }
 
         entries.push(entry)
@@ -702,7 +702,7 @@ function App() {
     // copiar se metería dentro de sí mismo sin parar.
     const dentroDelOrigen = await raizHandle.resolve(destino)
     if (dentroDelOrigen) {
-      setErrorCopia('La carpeta destino no puede estar dentro de la carpeta de origen.')
+      setErrorCopia("The destination folder can't be inside the source folder.")
       return
     }
 
@@ -998,8 +998,7 @@ function App() {
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#f5f4f0] p-8 font-mono text-[#15130f]">
         <h1 className="text-xl font-bold tracking-wide">PROJECTRESCUE</h1>
         <p className="max-w-sm text-center text-sm text-[#58544b]">
-          Tus archivos no salen de este ordenador. Elige la carpeta donde tienes tus proyectos de Ableton para
-          empezar.
+          Your files never leave this computer. Choose the folder with your Ableton projects to get started.
         </p>
         <button
           type="button"
@@ -1007,16 +1006,16 @@ function App() {
           disabled={loading}
           className="border border-[#15130f] px-5 py-2 text-sm text-[#15130f] hover:bg-[#15130f] hover:text-[#f5f4f0] disabled:opacity-50"
         >
-          {loading ? 'Escaneando…' : 'Elegir carpeta de proyectos'}
+          {loading ? 'Scanning…' : 'Choose projects folder'}
         </button>
         {progreso && progreso.total > 0 && (
           <p className="text-xs text-[#716d63]">
-            {progreso.leidos} de {progreso.total} proyectos
+            {progreso.leidos} of {progreso.total} projects
           </p>
         )}
         {notSupported && (
           <p className="max-w-sm text-center text-sm text-[#b03f3f]">
-            Tu navegador no soporta elegir carpetas así. Prueba con Chrome o Edge de escritorio.
+            Your browser can't pick folders this way. Try desktop Chrome or Edge.
           </p>
         )}
       </div>
@@ -1029,16 +1028,16 @@ function App() {
         <div className="shrink-0 border-b border-[#ddd9cf] bg-[#efeeea] px-4 py-2 text-xs">
           {necesitaPermiso && (
             <div className="flex items-center gap-3 text-[#9c6f1e]">
-              <span>Hace falta volver a dar permiso para leer la carpeta.</span>
+              <span>You need to grant folder access again.</span>
               <button type="button" onClick={reconectarCarpeta} className="underline hover:text-[#15130f]">
-                Reconectar carpeta
+                Reconnect folder
               </button>
             </div>
           )}
           {progreso && progreso.total > 0 && (
             <div className="mt-1 flex items-center gap-2">
               <span className="text-[#58544b]">
-                Escaneando: {progreso.leidos} de {progreso.total}
+                Scanning: {progreso.leidos} of {progreso.total}
               </span>
               <div className="h-1 w-40 overflow-hidden bg-[#ddd9cf]">
                 <div
@@ -1049,7 +1048,7 @@ function App() {
             </div>
           )}
           {notSupported && (
-            <p className="text-[#b03f3f]">Tu navegador no soporta elegir carpetas así. Prueba con Chrome o Edge.</p>
+            <p className="text-[#b03f3f]">Your browser can't pick folders this way. Try Chrome or Edge.</p>
           )}
         </div>
       )}
@@ -1059,7 +1058,7 @@ function App() {
         <aside className="flex w-64 shrink-0 flex-col overflow-hidden border-r border-[#ddd9cf] bg-[#efeeea]">
           <div className="shrink-0 border-b border-[#ddd9cf] p-4">
             <h1 className="text-sm font-bold tracking-[0.15em]">PROJECTRESCUE</h1>
-            <p className="mt-0.5 text-[10px] tracking-wide text-[#716d63]">TUS ARCHIVOS NO SALEN DE AQUÍ</p>
+            <p className="mt-0.5 text-[10px] tracking-wide text-[#716d63]">YOUR FILES NEVER LEAVE HERE</p>
           </div>
 
           <div className="shrink-0 space-y-1.5 border-b border-[#ddd9cf] p-3">
@@ -1069,7 +1068,7 @@ function App() {
               disabled={loading}
               className="w-full border border-[#c9c5ba] px-2 py-1.5 text-left text-[12px] text-[#38352c] hover:border-[#a39e92] disabled:opacity-50"
             >
-              {loading ? 'Escaneando…' : 'Cambiar carpeta…'}
+              {loading ? 'Scanning…' : 'Change folder…'}
             </button>
             <button
               type="button"
@@ -1077,7 +1076,7 @@ function App() {
               disabled={loading}
               className="w-full border border-[#c9c5ba] px-2 py-1.5 text-left text-[12px] text-[#38352c] hover:border-[#a39e92] disabled:opacity-50"
             >
-              Buscar cambios
+              Check for changes
             </button>
           </div>
 
@@ -1086,12 +1085,12 @@ function App() {
               type="search"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar proyectos…"
+              placeholder="Search projects…"
               className="w-full border border-[#c9c5ba] bg-transparent px-2 py-1.5 text-[12px] text-[#15130f] placeholder:text-[#9c988d] focus:border-[#716d63] focus:outline-none"
             />
           </div>
 
-          <div className="shrink-0 px-3 pt-3 text-[10px] tracking-[0.1em] text-[#9c988d]">CARPETAS</div>
+          <div className="shrink-0 px-3 pt-3 text-[10px] tracking-[0.1em] text-[#9c988d]">FOLDERS</div>
           <div className="flex-1 overflow-y-auto px-1 py-1.5">
             <div
               className={`flex cursor-pointer items-center gap-1.5 py-1 pr-2 pl-2 text-[13px] ${
@@ -1104,7 +1103,7 @@ function App() {
                 setBusqueda('')
               }}
             >
-              <span className="truncate">{raizHandle?.name ?? 'Carpeta'}</span>
+              <span className="truncate">{raizHandle?.name ?? 'Folder'}</span>
               <span className="ml-auto text-[11px] text-[#9c988d]">{arbolDeCarpetas.numeroDeProyectos}</span>
             </div>
             {arbolDeCarpetas.hijos.map((hijo) => (
@@ -1130,22 +1129,22 @@ function App() {
                 checked={ignorarRepetidos}
                 onChange={(e) => setIgnorarRepetidos(e.target.checked)}
               />
-              Ignorar repetidas en {UMBRAL_REPETICION}+ proyectos al reproducir
+              Ignore recordings repeated in {UMBRAL_REPETICION}+ projects when playing
             </label>
           </div>
 
           <div className="shrink-0 border-t border-[#ddd9cf] p-3 text-[11px]">
-            <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">ESTADÍSTICAS</div>
+            <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">STATISTICS</div>
             <div className="flex justify-between text-[#58544b]">
-              <span>Proyectos</span>
+              <span>Projects</span>
               <span className="text-[#38352c]">{projects.length}</span>
             </div>
             <div className="flex justify-between text-[#58544b]">
-              <span>Tamaño total</span>
+              <span>Total size</span>
               <span className="text-[#38352c]">{formatoTamano(tamanoTotalBiblioteca)}</span>
             </div>
             <div className="flex justify-between text-[#58544b]">
-              <span>Último escaneo</span>
+              <span>Last scan</span>
               <span className="text-[#38352c]">{formatoFecha(ultimoEscaneo)}</span>
             </div>
           </div>
@@ -1157,7 +1156,7 @@ function App() {
               className="w-full px-3 py-2 text-center text-[12px] font-bold tracking-[0.1em] text-white"
               style={{ backgroundColor: COLOR_OPTIMIZAR }}
             >
-              OPTIMIZAR
+              OPTIMIZE
             </button>
           </div>
         </aside>
@@ -1167,10 +1166,10 @@ function App() {
           <div className="shrink-0 border-b border-[#ddd9cf] px-4 py-3">
             <p className="text-[10px] text-[#9c988d]">
               {busqueda.trim()
-                ? `Resultados de "${busqueda}"`
+                ? `Results for "${busqueda}"`
                 : [raizHandle?.name, ...carpetaSeleccionada].filter(Boolean).join(' / ')}
             </p>
-            <p className="mt-0.5 text-sm text-[#15130f]">{proyectosVisibles.length} proyectos</p>
+            <p className="mt-0.5 text-sm text-[#15130f]">{proyectosVisibles.length} projects</p>
           </div>
 
           <ul className="flex-1 divide-y divide-[#e2ded3] overflow-y-auto">
@@ -1190,7 +1189,7 @@ function App() {
                         e.stopPropagation()
                         guardarMeta(project.path, { favorito: !metaPorPath[project.path]?.favorito })
                       }}
-                      aria-label="Marcar como favorito"
+                      aria-label="Mark as favorite"
                       className="shrink-0 text-[#8a7a3a]"
                     >
                       {metaPorPath[project.path]?.favorito ? '★' : '☆'}
@@ -1202,7 +1201,7 @@ function App() {
                     <span>·</span>
                     <span>{formatoFecha(project.lastModified)}</span>
                     <span>·</span>
-                    <span>{project.info?.tracks.length ?? 0} pistas</span>
+                    <span>{project.info?.tracks.length ?? 0} tracks</span>
                   </div>
                   {project.estado && (
                     <p className={`mt-1 text-[11px] ${COLOR_ESTADO[project.estado]}`}>{ETIQUETA_ESTADO[project.estado]}</p>
@@ -1211,7 +1210,7 @@ function App() {
               )
             })}
             {proyectosVisibles.length === 0 && (
-              <li className="px-4 py-6 text-center text-sm text-[#9c988d]">Nada por aquí.</li>
+              <li className="px-4 py-6 text-center text-sm text-[#9c988d]">Nothing here.</li>
             )}
           </ul>
         </main>
@@ -1220,7 +1219,7 @@ function App() {
         <section className="flex flex-1 flex-col overflow-hidden">
           {!proyectoActivo ? (
             <div className="flex flex-1 items-center justify-center text-sm text-[#9c988d]">
-              Selecciona un proyecto para ver su detalle.
+              Select a project to see its details.
             </div>
           ) : (
             <>
@@ -1241,7 +1240,7 @@ function App() {
                   <button
                     type="button"
                     onClick={() => guardarMeta(proyectoActivo.path, { favorito: !metaPorPath[proyectoActivo.path]?.favorito })}
-                    aria-label="Marcar como favorito"
+                    aria-label="Mark as favorite"
                     className="shrink-0 text-lg text-[#8a7a3a]"
                   >
                     {metaPorPath[proyectoActivo.path]?.favorito ? '★' : '☆'}
@@ -1249,11 +1248,11 @@ function App() {
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#58544b]">
-                  <span>{proyectoActivo.info?.liveVersion || 'Versión desconocida'}</span>
+                  <span>{proyectoActivo.info?.liveVersion || 'Unknown version'}</span>
                   <span>·</span>
                   <span>{proyectoActivo.info?.bpm != null ? `${proyectoActivo.info.bpm} BPM` : '— BPM'}</span>
                   <span>·</span>
-                  <span>{proyectoActivo.info?.tracks.length ?? 0} pistas</span>
+                  <span>{proyectoActivo.info?.tracks.length ?? 0} tracks</span>
                   <span>·</span>
                   <span>{formatoFecha(proyectoActivo.lastModified)}</span>
                   {proyectoActivo.estado && (
@@ -1274,7 +1273,7 @@ function App() {
                         onClick={pararReproduccion}
                         className="border border-[#b03f3f] px-3 py-1 text-[12px] text-[#b03f3f] hover:bg-[#b03f3f]/10"
                       >
-                        ■ Parar
+                        ■ Stop
                       </button>
                     ) : (
                       <button
@@ -1282,7 +1281,7 @@ function App() {
                         onClick={() => onPlayClick(proyectoActivo)}
                         className="border border-[#15130f] px-3 py-1 text-[12px] text-[#15130f] hover:bg-[#15130f] hover:text-[#f5f4f0]"
                       >
-                        ▶ Reproducir
+                        ▶ Play
                       </button>
                     ))}
                   {proyectoActivo.estado === 'con audio' &&
@@ -1292,7 +1291,7 @@ function App() {
                         onClick={pararMezcla}
                         className="border border-[#b03f3f] px-3 py-1 text-[12px] text-[#b03f3f] hover:bg-[#b03f3f]/10"
                       >
-                        ■ Parar mezcla
+                        ■ Stop mix
                       </button>
                     ) : (
                       <button
@@ -1301,7 +1300,7 @@ function App() {
                         disabled={mezclaCargando === proyectoActivo.path}
                         className="border border-[#c9c5ba] px-3 py-1 text-[12px] text-[#38352c] hover:border-[#a39e92] disabled:opacity-50"
                       >
-                        {mezclaCargando === proyectoActivo.path ? 'Preparando mezcla…' : '▶ Mezcla completa'}
+                        {mezclaCargando === proyectoActivo.path ? 'Preparing mix…' : '▶ Full mix'}
                       </button>
                     ))}
                   <button
@@ -1309,13 +1308,12 @@ function App() {
                     onClick={() => copiarRuta(proyectoActivo)}
                     className="border border-[#c9c5ba] px-3 py-1 text-[12px] text-[#38352c] hover:border-[#a39e92]"
                   >
-                    {rutaCopiada === proyectoActivo.path ? 'Ruta copiada' : 'Copiar ruta'}
+                    {rutaCopiada === proyectoActivo.path ? 'Path copied' : 'Copy path'}
                   </button>
                 </div>
                 {mezclaReproduciendo === proyectoActivo.path && (
                   <p className="mt-1 text-[11px] text-[#9c988d]">
-                    Sumando todas las pistas en bruto: sin plugins, volúmenes ni paneo del proyecto, y sin las pistas
-                    MIDI.
+                    Adding up all tracks raw: no plugins, volumes or panning from the project, and no MIDI tracks.
                   </p>
                 )}
 
@@ -1324,7 +1322,7 @@ function App() {
                     <button
                       type="button"
                       onClick={() => saltarMezcla(-5)}
-                      aria-label="Retroceder 5 segundos"
+                      aria-label="Back 5 seconds"
                       className="shrink-0 text-[14px] text-[#58544b] hover:text-[#15130f]"
                     >
                       ⏪
@@ -1343,7 +1341,7 @@ function App() {
                     <button
                       type="button"
                       onClick={() => saltarMezcla(5)}
-                      aria-label="Avanzar 5 segundos"
+                      aria-label="Forward 5 seconds"
                       className="shrink-0 text-[14px] text-[#58544b] hover:text-[#15130f]"
                     >
                       ⏩
@@ -1359,7 +1357,7 @@ function App() {
                     <button
                       type="button"
                       onClick={() => saltar(-5)}
-                      aria-label="Retroceder 5 segundos"
+                      aria-label="Back 5 seconds"
                       className="shrink-0 text-[14px] text-[#58544b] hover:text-[#15130f]"
                     >
                       ⏪
@@ -1378,7 +1376,7 @@ function App() {
                     <button
                       type="button"
                       onClick={() => saltar(5)}
-                      aria-label="Avanzar 5 segundos"
+                      aria-label="Forward 5 seconds"
                       className="shrink-0 text-[14px] text-[#58544b] hover:text-[#15130f]"
                     >
                       ⏩
@@ -1392,7 +1390,7 @@ function App() {
                     onClick={() => setPestanaActiva('pistas')}
                     className={pestanaActiva === 'pistas' ? 'border-b border-[#15130f] pb-1 text-[#15130f]' : 'pb-1'}
                   >
-                    PISTAS
+                    TRACKS
                   </button>
                   <button
                     type="button"
@@ -1413,12 +1411,12 @@ function App() {
                         type="text"
                         defaultValue={metaPorPath[proyectoActivo.path]?.alias ?? ''}
                         onBlur={(e) => guardarMeta(proyectoActivo.path, { alias: e.target.value })}
-                        placeholder="Ponle un alias…"
+                        placeholder="Give it an alias…"
                         className="w-full border border-[#c9c5ba] bg-transparent px-2 py-1.5 text-[#15130f] focus:border-[#716d63] focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#9c988d]">ETIQUETAS</label>
+                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#9c988d]">TAGS</label>
                       <input
                         type="text"
                         defaultValue={(metaPorPath[proyectoActivo.path]?.etiquetas ?? []).join(', ')}
@@ -1430,12 +1428,12 @@ function App() {
                               .filter(Boolean),
                           })
                         }
-                        placeholder="Etiquetas separadas por comas…"
+                        placeholder="Tags, separated by commas…"
                         className="w-full border border-[#c9c5ba] bg-transparent px-2 py-1.5 text-[#15130f] focus:border-[#716d63] focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#9c988d]">RUTA COMPLETA</label>
+                      <label className="mb-1 block text-[10px] tracking-[0.1em] text-[#9c988d]">FULL PATH</label>
                       <p className="break-all text-[#58544b]">
                         {raizHandle?.name}/{proyectoActivo.path}
                       </p>
@@ -1450,9 +1448,9 @@ function App() {
                         className="mb-3 block text-left text-[11px] text-[#9c6f1e] underline decoration-dotted"
                       >
                         {sobrantesDeLaCarpetaActiva.length === 1
-                          ? 'Esta carpeta tiene 1 archivo de audio que ningún proyecto usa'
-                          : `Esta carpeta tiene ${sobrantesDeLaCarpetaActiva.length} archivos de audio que ningún proyecto usa`}
-                        {' → verlo en OPTIMIZAR'}
+                          ? 'This folder has 1 audio file that no project uses'
+                          : `This folder has ${sobrantesDeLaCarpetaActiva.length} audio files that no project uses`}
+                        {' → see it in OPTIMIZE'}
                       </button>
                     )}
 
@@ -1463,7 +1461,7 @@ function App() {
                           checked={mostrarNoEncontrados}
                           onChange={(e) => setMostrarNoEncontrados(e.target.checked)}
                         />
-                        Mostrar audios no encontrados
+                        Show audio not found
                       </label>
                       <label className="flex items-center gap-1.5">
                         <input
@@ -1471,7 +1469,7 @@ function App() {
                           checked={mostrarOtrosArchivos}
                           onChange={(e) => setMostrarOtrosArchivos(e.target.checked)}
                         />
-                        Mostrar tomas archivadas
+                        Show archived takes
                       </label>
                     </div>
 
@@ -1520,16 +1518,16 @@ function App() {
                               {clipsDeLaPista && clipsDeLaPista.length === 0 ? (
                                 <p className="py-1 text-[11px] text-[#9c988d]">
                                   {noEncontrados > 0
-                                    ? `Ninguna grabación encontrada (${noEncontrados} oculta${noEncontrados === 1 ? '' : 's'})`
+                                    ? `No recording found (${noEncontrados} hidden)`
                                     : archivadasOcultas > 0
-                                      ? `Sin toma principal (${archivadasOcultas} archivada${archivadasOcultas === 1 ? '' : 's'}, oculta${archivadasOcultas === 1 ? '' : 's'})`
-                                      : 'comprobando…'}
+                                      ? `No main take (${archivadasOcultas} archived, hidden)`
+                                      : 'checking…'}
                                 </p>
                               ) : (
                                 clipsDeLaPista?.map(({ clip, idx }) => {
                                   const handle = resueltos?.[idx]
                                   const veces = vecesRepetido(clip, repeticiones)
-                                  const nombreArchivo = clip.relativePath?.split(/[/\\]/).pop() ?? '(ruta desconocida)'
+                                  const nombreArchivo = clip.relativePath?.split(/[/\\]/).pop() ?? '(unknown path)'
                                   return (
                                     <div key={idx} className="flex items-center gap-2 py-1">
                                       {handle ? (
@@ -1554,10 +1552,10 @@ function App() {
                                         {formatoTamano(clip.originalFileSize)}
                                       </span>
                                       <span className="w-24 shrink-0 text-right text-[11px] text-[#9c988d]">
-                                        {!resueltos ? 'comprobando…' : handle ? 'encontrado' : 'no encontrado'}
+                                        {!resueltos ? 'checking…' : handle ? 'found' : 'not found'}
                                       </span>
                                       {veces >= 2 && (
-                                        <span className="shrink-0 text-[10px] text-[#9c988d]">en {veces} proyectos</span>
+                                        <span className="shrink-0 text-[10px] text-[#9c988d]">in {veces} projects</span>
                                       )}
                                     </div>
                                   )
@@ -1565,14 +1563,12 @@ function App() {
                               )}
                               {!mostrarNoEncontrados && noEncontrados > 0 && clipsDeLaPista && clipsDeLaPista.length > 0 && (
                                 <p className="pt-0.5 text-[10px] text-[#9c988d]">
-                                  + {noEncontrados} no encontrada{noEncontrados === 1 ? '' : 's'} (oculta
-                                  {noEncontrados === 1 ? '' : 's'})
+                                  + {noEncontrados} not found (hidden)
                                 </p>
                               )}
                               {!mostrarOtrosArchivos && archivadasOcultas > 0 && clipsDeLaPista && clipsDeLaPista.length > 0 && (
                                 <p className="pt-0.5 text-[10px] text-[#9c988d]">
-                                  + {archivadasOcultas} toma{archivadasOcultas === 1 ? '' : 's'} archivada
-                                  {archivadasOcultas === 1 ? '' : 's'} (oculta{archivadasOcultas === 1 ? '' : 's'})
+                                  + {archivadasOcultas} archived take{archivadasOcultas === 1 ? '' : 's'} (hidden)
                                 </p>
                               )}
                             </div>
@@ -1592,11 +1588,11 @@ function App() {
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-6">
           <div className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden border border-[#c9c5ba] bg-[#f5f4f0] text-[13px]">
             <div className="flex items-center justify-between border-b border-[#ddd9cf] px-4 py-3">
-              <h2 className="text-sm font-bold tracking-[0.1em]">OPTIMIZACIÓN DE LA BIBLIOTECA</h2>
+              <h2 className="text-sm font-bold tracking-[0.1em]">LIBRARY OPTIMIZATION</h2>
               <button
                 type="button"
                 onClick={() => setMostrarOptimizacion(false)}
-                aria-label="Cerrar"
+                aria-label="Close"
                 className="text-[#58544b] hover:text-[#15130f]"
               >
                 ✕
@@ -1605,30 +1601,30 @@ function App() {
 
             {audioIndex.length === 0 ? (
               <p className="p-4 text-[#58544b]">
-                Para proponer una optimización hace falta escanear la carpeta en esta sesión: usa "Cambiar carpeta…" o
-                "Buscar cambios".
+                Suggesting an optimization needs the folder scanned in this session: use "Change folder…" or
+                "Check for changes".
               </p>
             ) : (
               <>
                 <div className="shrink-0 border-b border-[#ddd9cf] px-4 py-3" style={{ backgroundColor: '#f1ece2' }}>
                   <p className="text-[12px] text-[#38352c]">
-                    <strong>No se borra ni se modifica nada de tu ordenador.</strong> Esto solo crea, en la carpeta
-                    que elijas, un clon de tu biblioteca optimizado y ordenado. Compruébalo con calma y, cuando estés
-                    seguro de que todo está bien, borra tú la carpeta original — por seguridad, eso lo decides y lo
-                    haces tú.
+                    <strong>Nothing on your computer is deleted or changed.</strong> This only creates, in the
+                    folder you choose, an optimized and tidy clone of your library. Check it at your own pace, and
+                    once you're sure everything's fine, you delete the original folder yourself — for safety, that's
+                    your call and your action.
                   </p>
                 </div>
 
                 <div className="flex flex-1 overflow-hidden">
                   {/* Izquierda: qué se quita y qué pasa con cada carpeta */}
                   <div className="w-72 shrink-0 overflow-y-auto border-r border-[#ddd9cf] p-4">
-                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">ARCHIVOS SOBRANTES</div>
+                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">LEFTOVER FILES</div>
                     {archivosSobrantes.length === 0 ? (
-                      <p className="mb-4 text-[#58544b]">Ninguno: no hay nada que sobre.</p>
+                      <p className="mb-4 text-[#58544b]">None: there's nothing left over.</p>
                     ) : (
                       <>
                         <p className="mb-2 text-[#38352c]">
-                          {archivosSobrantes.length} archivo{archivosSobrantes.length === 1 ? '' : 's'} · {formatoTamano(tamanoSobrantes)}
+                          {archivosSobrantes.length} file{archivosSobrantes.length === 1 ? '' : 's'} · {formatoTamano(tamanoSobrantes)}
                         </p>
                         <ul className="mb-4 max-h-64 space-y-2 overflow-y-auto pr-1">
                           {gruposSobrantes.map((grupo) => (
@@ -1666,18 +1662,17 @@ function App() {
                       </>
                     )}
 
-                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">ENCONTRADO, PERO SIN USAR</div>
+                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">FOUND, BUT UNUSED</div>
                     {archivosSinUsar.length === 0 ? (
-                      <p className="mb-4 text-[#58544b]">Ninguno.</p>
+                      <p className="mb-4 text-[#58544b]">None.</p>
                     ) : (
                       <>
                         <p className="mb-1 text-[#38352c]">
-                          {archivosSinUsar.length} archivo{archivosSinUsar.length === 1 ? '' : 's'} · {formatoTamano(tamanoSinUsar)}
+                          {archivosSinUsar.length} file{archivosSinUsar.length === 1 ? '' : 's'} · {formatoTamano(tamanoSinUsar)}
                         </p>
                         <p className="mb-2 text-[11px] text-[#9c988d]">
-                          Son tomas que algún proyecto tiene archivadas, pero ninguna pista reproduce de verdad. No
-                          son basura con la misma certeza que los sobrantes, así que se quedan en la copia salvo que
-                          lo pidas.
+                          These are takes some project has archived, but no track actually plays them. They're not
+                          as clearly junk as the leftovers, so they stay in the copy unless you ask otherwise.
                         </p>
                         <label className="mb-2 flex items-center gap-2 text-[11px] text-[#38352c]">
                           <input
@@ -1685,7 +1680,7 @@ function App() {
                             checked={incluirSinUsar}
                             onChange={(e) => setIncluirSinUsar(e.target.checked)}
                           />
-                          Quitarlos también de la copia optimizada
+                          Also remove them from the optimized copy
                         </label>
                         <ul className="mb-4 max-h-48 space-y-2 overflow-y-auto pr-1">
                           {gruposSinUsar.map((grupo) => (
@@ -1717,10 +1712,10 @@ function App() {
                     {carpetasSinAudios.length > 0 && (
                       <>
                         <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">
-                          CARPETAS QUE SE QUEDARÍAN VACÍAS
+                          FOLDERS THAT WOULD BE LEFT EMPTY
                         </div>
                         <p className="mb-2 text-[11px] text-[#9c988d]">
-                          No se crean en la copia optimizada: no tiene sentido una carpeta sin ningún audio dentro.
+                          They aren't created in the optimized copy: there's no point in a folder with no audio inside.
                         </p>
                         <ul className="mb-4 max-h-32 space-y-0.5 overflow-y-auto">
                           {carpetasSinAudios.map((carpeta) => (
@@ -1732,19 +1727,19 @@ function App() {
                       </>
                     )}
 
-                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">CARPETAS QUE SE REORGANIZAN</div>
+                    <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">FOLDERS BEING REORGANIZED</div>
                     <p className="mb-4 text-[#38352c]">
-                      {planOptimizacion.filter((g) => !g.fija).length} de {planOptimizacion.length}
+                      {planOptimizacion.filter((g) => !g.fija).length} of {planOptimizacion.length}
                     </p>
 
                     {arbolPropuesto.fijas.length > 0 && (
                       <>
-                        <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">SE QUEDAN IGUAL</div>
+                        <div className="mb-1.5 text-[10px] tracking-[0.1em] text-[#9c988d]">STAYING THE SAME</div>
                         <ul className="space-y-1">
                           {arbolPropuesto.fijas.map((grupo) => (
                             <li key={grupo.nombreActual} className="text-[11px] text-[#58544b]">
-                              <span className="text-[#38352c]">{grupo.nombreActual}</span> — comparte archivos con
-                              otra carpeta
+                              <span className="text-[#38352c]">{grupo.nombreActual}</span> — shares files with
+                              another folder
                             </li>
                           ))}
                         </ul>
@@ -1754,11 +1749,11 @@ function App() {
 
                   {/* Derecha: árbol de carpetas propuesto */}
                   <div className="flex-1 overflow-y-auto p-4">
-                    <div className="mb-2 text-[10px] tracking-[0.1em] text-[#9c988d]">ÁRBOL PROPUESTO</div>
+                    <div className="mb-2 text-[10px] tracking-[0.1em] text-[#9c988d]">PROPOSED TREE</div>
                     {arbolPropuesto.buckets.length === 0 ? (
                       <p className="text-[#58544b]">
-                        Ninguna carpeta se puede reorganizar sin romper referencias entre proyectos; se copiarían tal
-                        cual están ahora.
+                        No folder can be reorganized without breaking references between projects; they'd be
+                        copied exactly as they are now.
                       </p>
                     ) : (
                       <ul>
@@ -1771,7 +1766,7 @@ function App() {
                                   <span className="text-[#9c988d]">└</span>
                                   {grupo.nombreActual}
                                   <span className="text-[11px] text-[#9c988d]">
-                                    ({grupo.numeroDeProyectos} proyecto{grupo.numeroDeProyectos === 1 ? '' : 's'})
+                                    ({grupo.numeroDeProyectos} project{grupo.numeroDeProyectos === 1 ? '' : 's'})
                                   </span>
                                 </li>
                               ))}
@@ -1790,7 +1785,7 @@ function App() {
               {copiaEnProgreso ? (
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[12px] text-[#58544b]">
-                    Copiando… {copiaEnProgreso.copiados} copiados, {copiaEnProgreso.omitidos} omitidos
+                    Copying… {copiaEnProgreso.copiados} copied, {copiaEnProgreso.omitidos} skipped
                   </p>
                   <button
                     type="button"
@@ -1799,7 +1794,7 @@ function App() {
                     }}
                     className="border border-[#b03f3f] px-3 py-1 text-[12px] text-[#b03f3f] hover:bg-[#b03f3f]/10"
                   >
-                    Cancelar
+                    Cancel
                   </button>
                 </div>
               ) : (
@@ -1810,7 +1805,7 @@ function App() {
                   className="px-4 py-2 text-[12px] font-bold tracking-[0.05em] text-white disabled:opacity-50"
                   style={{ backgroundColor: COLOR_OPTIMIZAR }}
                 >
-                  Descargar carpeta optimizada…
+                  Download optimized folder…
                 </button>
               )}
             </div>
